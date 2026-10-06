@@ -1,0 +1,33 @@
+# Netlify 배포 설정
+# 1) Netlify > Add new site > Import an existing project > 이 깃 저장소 선택
+# 2) Build command / Publish directory 는 아래 값이 자동 적용됩니다.
+# 3) Site configuration > Environment variables 에 SITE_URL 를 실제 도메인으로 넣으면
+#    canonical / sitemap / JSON-LD 의 절대경로가 전부 그 값으로 바뀝니다.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Content-Type = "application/xml; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
+# 정적 HTML 이므로 404 는 Netlify 기본 404.html 로 처리됩니다.

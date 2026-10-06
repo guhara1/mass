@@ -1,0 +1,174 @@
+/* ===========================================================
+ *  dist/ 전수 감사
+ *   1) 행정구·행정동 본문 1,500자 이상
+ *   2) 로드샵 디스크립션에 "출장 마사지" + "홈타이" 포함
+ *   3) title / description / canonical 전부 고유
+ *   4) 내부 링크 깨짐 없음
+ *   5) 전화 버튼(05082024749) · 로드샵 모바일 고정바 문구
+ *   6) JSON-LD 파싱 + FAQPage 존재
+ *   7) 근접 중복(유사도) 검사 — 스팸 패널티 예방
+ * =========================================================== */
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { join, relative } from 'node:path';
+
+const OUT = 'dist';
+const files = [];
+async function walk(d) {
+  for (const e of await readdir(d, { withFileTypes: true })) {
+    const p = join(d, e.name);
+    if (e.isDirectory()) await walk(p);
+    else if (e.name.endsWith('.html')) files.push(p);
+  }
+}
+await walk(OUT);
+
+const pathOf = f => '/' + relative(OUT, f).replace(/index\.html$/, '').replace(/\\/g, '/');
+const text = html => html
+  .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/&[a-z#0-9]+;/gi, ' ')
+  .replace(/\s+/g, ' ').trim();
+const attr = (html, re) => (html.match(re) || [, ''])[1];
+
+const docs = [];
+for (const f of files) {
+  const html = await readFile(f, 'utf8');
+  docs.push({ f, path: pathOf(f), html, size: Buffer.byteLength(html) });
+}
+
+const err = [], warn = [];
+const E = m => err.push(m), W = m => warn.push(m);
+
+/* 페이지 종류 판정 */
+const kindOf = p => {
+  if (p === '/') return 'home';
+  if (p === '/404.html') return '404';
+  if (/^\/(seoul|gyeonggi|incheon)\/$/.test(p)) return 'region';
+  const seg = p.split('/').filter(Boolean);
+  if (/^(seoul|gyeonggi|incheon)$/.test(seg[0])) {
+    if (seg.length === 2) return 'district';
+    if (seg.length === 3) return 'dong';
+    if (seg.length === 4) return 'shop';
+  }
+  return 'static';
+};
+
+const titles = new Map(), descs = new Map(), canons = new Map();
+const known = new Set(docs.map(d => d.path));
+const areaTexts = [];
+let minChars = Infinity, shopOk = 0, telOk = 0;
+
+for (const d of docs) {
+  const k = kindOf(d.path);
+  const title = attr(d.html, /<title>([^<]*)<\/title>/);
+  const desc = attr(d.html, /<meta name="description" content="([^"]*)"/);
+  const canon = attr(d.html, /<link rel="canonical" href="([^"]*)"/);
+
+  /* 3) 고유성 */
+  if (!title) E(`${d.path} title 없음`);
+  if (!desc) E(`${d.path} description 없음`);
+  if (!canon) E(`${d.path} canonical 없음`);
+  if (d.path !== '/404.html') {
+    if (titles.has(title)) E(`title 중복: ${d.path} ↔ ${titles.get(title)}`); else titles.set(title, d.path);
+    if (descs.has(desc)) E(`description 중복: ${d.path} ↔ ${descs.get(desc)}`); else descs.set(desc, d.path);
+    if (canons.has(canon)) E(`canonical 중복: ${d.path}`); else canons.set(canon, d.path);
+    if (!canon.endsWith(d.path)) E(`canonical 불일치: ${d.path} → ${canon}`);
+  }
+  if (desc && (desc.length < 60 || desc.length > 165)) W(`description 길이 ${desc.length}자: ${d.path}`);
+
+  /* h1 1개 */
+  const h1 = (d.html.match(/<h1[\s>]/g) || []).length;
+  if (h1 !== 1) E(`${d.path} h1 ${h1}개`);
+
+  /* 5) 전화번호 */
+  if (/href="tel:05082024749"/.test(d.html)) telOk++; else E(`${d.path} 전화 링크 없음`);
+
+  /* 사진 미사용(텍스트 SVG 전용) */
+  if (/<img[\s>]/.test(d.html)) E(`${d.path} <img> 사용 — 텍스트 SVG 전용 규칙 위반`);
+
+  /* 6) JSON-LD */
+  const lds = [...d.html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
+  if (!lds.length) E(`${d.path} JSON-LD 없음`);
+  for (const m of lds) {
+    try {
+      const g = JSON.parse(m[1].replace(/\\u003c/g, '<'));
+      const types = (g['@graph'] || [g]).flatMap(n => [].concat(n['@type']));
+      if (['district', 'dong', 'shop'].includes(k) && !types.includes('FAQPage')) E(`${d.path} FAQPage 누락`);
+      if (k === 'shop' && !types.includes('HealthAndBeautyBusiness')) E(`${d.path} LocalBusiness 누락`);
+    } catch (e) { E(`${d.path} JSON-LD 파싱 실패: ${e.message}`); }
+  }
+
+  /* 1) 본문 1,500자 */
+  if (k === 'district' || k === 'dong') {
+    const t = text(d.html);
+    const main = t.length;
+    if (main < 1500) E(`${d.path} 본문 ${main}자 (1,500자 미달)`);
+    minChars = Math.min(minChars, main);
+    areaTexts.push({ path: d.path, t });
+  }
+
+  /* 2) 로드샵 디스크립션 키워드 + 모바일 고정 전화바 */
+  if (k === 'shop') {
+    const okKw = desc.includes('출장 마사지') && desc.includes('홈타이');
+    if (!okKw) E(`${d.path} 디스크립션 키워드 누락 (출장 마사지/홈타이)`);
+    if (!/class="callbar"/.test(d.html)) E(`${d.path} 모바일 고정 전화바 없음`);
+    if (!/출장마사지 전화연결/.test(d.html)) E(`${d.path} 고정바 "출장마사지" 문구 없음`);
+    if (okKw) shopOk++;
+  }
+
+  /* 4) 내부 링크 */
+  for (const m of d.html.matchAll(/href="(\/[^"#?]*)"/g)) {
+    const href = m[1];
+    if (/\.(css|js|json|svg|xml|txt)$/.test(href)) continue;
+    if (!known.has(href)) E(`${d.path} 깨진 링크 → ${href}`);
+  }
+}
+
+/* 7) 근접 중복 검사 — 지역 페이지 간 5-gram Jaccard */
+function shingles(t) {
+  const s = new Set();
+  const clean = t.replace(/[^가-힣a-zA-Z0-9]/g, '');
+  for (let i = 0; i + 12 <= clean.length; i += 3) s.add(clean.slice(i, i + 12));
+  return s;
+}
+const sh = areaTexts.map(a => ({ path: a.path, s: shingles(a.t) }));
+let worst = { v: 0 };
+const SAMPLE = 1400;   /* 전체 쌍은 과하므로 샘플링 */
+let step = Math.max(1, Math.floor((sh.length * (sh.length - 1) / 2) / SAMPLE));
+let c = 0;
+for (let i = 0; i < sh.length; i++) {
+  for (let j = i + 1; j < sh.length; j++) {
+    if (c++ % step) continue;
+    const A = sh[i].s, B = sh[j].s;
+    let inter = 0;
+    for (const x of A) if (B.has(x)) inter++;
+    const v = inter / (A.size + B.size - inter);
+    if (v > worst.v) worst = { v, a: sh[i].path, b: sh[j].path };
+  }
+}
+if (worst.v > 0.5) E(`지역 페이지 유사도 과다 ${(worst.v * 100).toFixed(1)}%: ${worst.a} ↔ ${worst.b}`);
+else if (worst.v > 0.35) W(`지역 페이지 최대 유사도 ${(worst.v * 100).toFixed(1)}%: ${worst.a} ↔ ${worst.b}`);
+
+/* ── 리포트 ───────────────────────────────────────────── */
+const avg = docs.reduce((a, d) => a + d.size, 0) / docs.length / 1024;
+console.log(`
+감사 결과
+────────────────────────────────────────
+  페이지            ${docs.length}
+  고유 title        ${titles.size}
+  고유 description  ${descs.size}
+  전화 링크 포함    ${telOk}/${docs.length}
+  로드샵 키워드 OK  ${shopOk}
+  지역 본문 최소    ${minChars === Infinity ? '-' : minChars + '자'}
+  최대 유사도       ${(worst.v * 100).toFixed(1)}%  ${worst.a ? `(${worst.a} ↔ ${worst.b})` : ''}
+  평균 페이지 용량  ${avg.toFixed(0)} KB
+────────────────────────────────────────
+  오류 ${err.length}건 / 경고 ${warn.length}건
+`);
+err.slice(0, 30).forEach(e => console.log('  ✗', e));
+if (err.length > 30) console.log(`  … 외 ${err.length - 30}건`);
+warn.slice(0, 12).forEach(e => console.log('  !', e));
+if (warn.length > 12) console.log(`  … 경고 외 ${warn.length - 12}건`);
+process.exit(err.length ? 1 : 0);
