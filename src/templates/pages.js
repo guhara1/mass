@@ -172,7 +172,7 @@ export function buildDistrict(dd) {
   const content = buildAreaContent({ seed: path, ctx });
   const v = variantPicker('ddesc:' + path);
 
-  const title = `${dd.name} 마사지 | ${dd.dongs.map(x => x.name.replace(/(동|읍|면)$/, '')).join('·')} 로드샵 코스·요금 안내`;
+  const title = `${dd.name} 마사지 — ${dd.dongs.map(x => x.name.replace(/(동|읍|면)$/, '')).join('·')} 로드샵 안내 | ${SITE.brand}`;
   const desc = clampDesc(v(DDESC, 'd')(ctx));
   const crumbs = [{ label: '홈', href: '/' }, { label: r.full, href: `/${r.slug}/` }, { label: dd.name, href: path }];
 
@@ -237,7 +237,7 @@ export function buildDong(g) {
   const content = buildAreaContent({ seed: path, ctx });
   const v = variantPicker('gdesc:' + path);
 
-  const title = `${g.name} 마사지 | ${dd.short || dd.name} ${g.station} 로드샵 출장·홈타이`;
+  const title = `${g.name} 마사지 — ${dd.short || dd.name} ${g.station} 로드샵 출장·홈타이 | ${SITE.brand}`;
   const desc = clampDesc(v(DDESC, 'g')(ctx));
   const crumbs = [{ label: '홈', href: '/' }, { label: r.full, href: `/${r.slug}/` }, { label: dd.name, href: districtPath(dd) }, { label: g.name, href: path }];
 
@@ -304,7 +304,7 @@ ${section({
 export function buildShop(s) {
   const path = s.path;
   const dd = s.district, r = s.region, g = s.dong;
-  const title = `${s.name} (${s.areaLabel}) ${s.kind} 코스·요금 | 출장 마사지·홈타이`;
+  const title = `${s.name} — ${s.areaLabel} ${s.kind} | ${SITE.brand}`;
   const desc = clampDesc(s.desc);   /* 출장 마사지 / 홈타이 키워드 포함 보장 */
   const crumbs = [
     { label: '홈', href: '/' }, { label: r.full, href: `/${r.slug}/` },

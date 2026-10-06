@@ -56,8 +56,9 @@ export function makeCtx({ region, district, dong, shops }) {
     roadShort: String(district.road || '').replace(/\.$/, ''),
     shopCount: shops.length,
     kinds: topKinds(shops),
-    priceMin: prices.length ? Math.min(...prices) : 60000,
-    priceMax: prices.length ? Math.max(...prices) : 160000,
+    priceMin: prices.length ? Math.min(...prices) : 120000,
+    priceMax: prices.length ? Math.max(...prices) : 180000,
+    price90: (shops[0]?.courses.find(c => c.min === 90) || { price: 150000 }).price,
     openSpan: openSpanOf(shops),
     tel: SITE.tel
   };
@@ -105,7 +106,8 @@ export function buildAreaContent({ seed, ctx }) {
   const chars = out.reduce((a, s) => a + textLen(s.text) + textLen(s.title), 0);
 
   /* AEO: 답변 요약(즉답) 블록 */
-  const answer = `${ctx.area}에서는 ${ctx.kinds.slice(0, 3).join(', ')} 등 ${ctx.shopCount}곳의 코스·요금·운영시간을 비교할 수 있습니다. 요금대는 ${ctx.priceMin.toLocaleString('ko-KR')}~${ctx.priceMax.toLocaleString('ko-KR')}원, 운영은 ${ctx.openSpan} 범위이며, 출장 마사지와 홈타이는 ${ctx.tel} 로 함께 접수됩니다.`;
+  const w = v => v.toLocaleString('ko-KR');
+  const answer = `${ctx.area}에서는 ${ctx.kinds.slice(0, 3).join(', ')} 등 ${ctx.shopCount}곳을 비교할 수 있습니다. 코스 요금은 60분 ${w(ctx.priceMin)}원 · 90분 ${w(ctx.price90)}원 · 120분 ${w(ctx.priceMax)}원으로 전 업소 동일하고, 운영은 ${ctx.openSpan} 범위이며, 출장 마사지와 홈타이는 ${ctx.tel} 로 함께 접수됩니다.`;
 
   return { sections: out, faq, chars, answer };
 }

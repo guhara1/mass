@@ -24,8 +24,8 @@ npm run audit     # 1,500자·키워드·중복·링크·구조화데이터 전�
 | `NAVER_VERIFY` | 서치어드바이저 메타값 | `<meta name="naver-site-verification">` 자동 출력 |
 | `GOOGLE_VERIFY` | 서치콘솔 메타값 | `<meta name="google-site-verification">` 자동 출력 |
 
-> `SITE_URL` 을 넣지 않으면 `https://hueline-guide.netlify.app` 가 기본값으로 쓰입니다.
-> **도메인 연결 직후 반드시 설정하세요.** canonical 이 틀리면 색인이 꼬입니다.
+> `SITE_URL` 을 넣지 않으면 `https://mass24.netlify.app` 가 기본값으로 쓰입니다.
+> **자체 도메인을 연결하면 반드시 이 값을 바꾸세요.** canonical 이 틀리면 색인이 꼬입니다.
 
 배포 후 제출할 것: `/sitemap.xml`, `/rss.xml` (네이버 서치어드바이저는 RSS 제출 시 수집이 빨라집니다)
 
@@ -36,14 +36,28 @@ npm run audit     # 1,500자·키워드·중복·링크·구조화데이터 전�
 전부 **`src/data/site.js` 한 파일**에 있습니다.
 
 ```js
-brand:   '휴라인',        // ← 상호 확정 후 교체 (전 페이지·로고 SVG 자동 반영)
-brandEn: 'HUELINE',       // ← 로고 하단 레터링
+brand:   '출장 휴라인',    // 상호 — 로고 SVG·전 페이지 타이틀·푸터 자동 반영
+brandEn: 'HUELINE',       // 로고 하단 레터링
 tel:     '050-8202-4749', // 표기용
 telRaw:  '05082024749',   // tel: 링크용
+origin:  'https://mass24.netlify.app'   // SITE_URL 환경변수가 있으면 그 값이 우선
 ```
 
-로고는 이미지가 아니라 **텍스트 SVG**(`src/lib/svg.js` → `logoSvg`)라서
-상호만 바꾸면 헤더·푸터 로고가 그대로 따라갑니다.
+로고는 이미지가 아니라 **텍스트 SVG**(`src/lib/svg.js` → `logoSvg`)이고
+뷰박스 폭을 상호 글자 수에 맞춰 계산하므로, 상호가 길어져도 잘리지 않습니다.
+
+### 코스 요금
+
+전 업소가 동일한 요금표를 씁니다. `src/data/shops.js` 의 `COURSE_PRICE` 만 고치면
+요금표·카드 가격·JSON-LD `Offer`·본문 요금 문장·FAQ·코스 안내 페이지까지 전부 따라옵니다.
+
+```js
+export const COURSE_PRICE = [
+  { min: 60,  price: 120000 },
+  { min: 90,  price: 150000 },
+  { min: 120, price: 180000 }
+];
+```
 
 ---
 
@@ -147,6 +161,9 @@ d('강남구', [37.5173, 127.0473], {
 브랜드 톤: **Warm Paper & Pine** — 이 업종에서 흔한 네온·다크퍼플을 피하고
 웜 페이퍼 배경 + 딥 파인그린 + 테라코타 CTA 조합으로 차별화했습니다.
 
+- **카드 전체 클릭.** 업소 카드는 배너(SVG)·설명·가격 어디를 눌러도 업소 페이지로 이동합니다.
+  링크를 중첩하지 않고 제목 링크의 `::after` 를 카드 전체로 펼치는 방식이라
+  접근성 트리에는 링크가 하나만 남고, 카드 안 전화 버튼은 `z-index` 로 분리해 그대로 동작합니다.
 - **사진 0장.** 히어로 박스와 업소 썸네일은 전부 **텍스트 SVG** (`src/lib/svg.js`)
   — 12개 컬러 스킴 × 8개 패턴을 업소 ID 시드로 결정하므로 같은 업소는 항상 같은 그림
 - **한글 시인성**: 본문 대비 7:1 이상, 행간 1.8, `word-break: keep-all`(어절 단위 줄바꿈),

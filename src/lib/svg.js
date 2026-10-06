@@ -154,9 +154,13 @@ ${lines.map((ln, i) => `<text x="${pad}" y="${(y0 + i * big * 1.08).toFixed(1)}"
 </svg>`;
 }
 
-/* ── 브랜드 로고 (텍스트 SVG) ───────────────────────────── */
+/* ── 브랜드 로고 (텍스트 SVG) ───────────────────────────
+ * 상호 글자 수에 맞춰 뷰박스 폭을 계산하므로 상호를 바꿔도 잘리지 않는다. */
 export function logoSvg(brand, brandEn) {
-  return `<svg class="logo" viewBox="0 0 168 40" role="img" aria-label="${esc(brand)}" xmlns="http://www.w3.org/2000/svg">
+  const chars = [...String(brand)];
+  const textW = chars.reduce((a, ch) => a + (/[\s]/.test(ch) ? 7 : /[가-힣]/.test(ch) ? 20.6 : 12), 0);
+  const w = Math.max(150, Math.round(46 + textW + 8));
+  return `<svg class="logo" viewBox="0 0 ${w} 40" role="img" aria-label="${esc(brand)}" xmlns="http://www.w3.org/2000/svg">
 <path d="M4 29 C 4 13, 15 7, 22 7 C 29 7, 33 12, 33 18 C 33 26, 25 33, 15 33" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" opacity="0.9"/>
 <circle cx="29.5" cy="29.5" r="3.6" fill="currentColor"/>
 <text x="46" y="25" fill="currentColor" font-size="21" font-weight="850" letter-spacing="-0.02em">${esc(brand)}</text>

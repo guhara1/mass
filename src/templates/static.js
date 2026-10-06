@@ -16,6 +16,7 @@ const P = (t) => `<p>${t}</p>`;
 
 function shell({ path, title, desc, h1, eyebrow, sub, lead, chips, body, faq, keywords, crumbs }) {
   const cr = crumbs || [{ label: '홈', href: '/' }, { label: h1, href: path }];
+  title = `${title} | ${SITE.brand}`;
   add(path, layout({
     active: path, bottom: fab(),
     seo: {
@@ -36,7 +37,7 @@ ${faq ? faqBlock(faq) : ''}`
 /* ── 행정구 전체 목록 ──────────────────────────────────── */
 export function buildAreasIndex() {
   const path = '/areas/';
-  const title = `행정구·행정동 전체 목록 | 서울 경기 인천 마사지 지역 안내`;
+  const title = `행정구·행정동 전체 목록 — 서울·경기·인천 마사지 지역 | ${SITE.brand}`;
   const desc = clampDesc(`서울 ${REGIONS[0].districts.length}개 자치구, 경기 ${REGIONS[1].districts.length}개 행정구·시, 인천 ${REGIONS[2].districts.length}개 구·군과 대표 행정동 ${STATS.dongs}곳 전체 목록. 지역을 눌러 코스·요금과 출장 마사지·홈타이 안내를 확인하세요.`);
 
   const body = REGIONS.map(r => section({
@@ -74,9 +75,12 @@ export function buildCourseGuide() {
   const path = '/guide/course/';
   const prices = ALL_SHOPS.flatMap(s => s.courses.map(c => c.price));
   const lo = Math.min(...prices), hi = Math.max(...prices);
+  const mid = (ALL_SHOPS[0].courses.find(c => c.min === 90) || { price: 150000 }).price;
+  const perMin = m => Math.round((ALL_SHOPS[0].courses.find(c => c.min === m) || { price: 0 }).price / m).toLocaleString('ko-KR');
   const faq = [
-    { q: '처음이면 몇 분 코스가 좋나요?', a: '전신 90분을 기준으로 시작하는 것을 권합니다. 60분은 목·어깨처럼 부위를 좁혀야 체감이 좋고, 120분 이상은 전신에 두피나 발 관리가 더해지는 구성이 많습니다. 한 번 받아 보면 다음 선택 기준이 분명해집니다.' },
-    { q: '요금은 무엇으로 비교해야 하나요?', a: `총액보다 분당 단가로 보는 편이 정확합니다. 현재 정리된 범위는 ${won(lo)}원~${won(hi)}원이고, 90분 기준 분당 1,100원대 전후가 일반적인 구간입니다.` },
+    { q: '처음이면 몇 분 코스가 좋나요?', a: `전신 90분(${won(mid)}원)을 기준으로 시작하는 것을 권합니다. 60분은 목·어깨처럼 부위를 좁혀야 체감이 좋고, 120분은 전신에 두피나 발 관리가 더해지는 구성이 많습니다. 한 번 받아 보면 다음 선택 기준이 분명해집니다.` },
+    { q: '업소마다 요금이 다른가요?', a: `아닙니다. 60분 ${won(lo)}원, 90분 ${won(mid)}원, 120분 ${won(hi)}원으로 전 업소가 같은 요금표를 씁니다. 가격을 비교할 필요 없이 업종·운영 방식·위치·운영 시간만 보고 고르시면 됩니다.` },
+    { q: '시간이 길수록 이득인가요?', a: `분당 단가로는 그렇습니다. 60분 ${perMin(60)}원, 90분 ${perMin(90)}원, 120분 ${perMin(120)}원으로 시간이 길수록 분당 단가가 내려갑니다. 다만 긴 코스는 예약 가능한 시간대가 줄어든다는 점은 함께 고려하세요.` },
     { q: '표기 요금 외에 추가 비용이 있나요?', a: '매장 방문은 표기 금액이 기준입니다. 출장 마사지는 이동 거리에 따른 기준이 별도로 붙을 수 있으므로, 예약 시 주소지를 함께 알려주면 총액을 미리 확인할 수 있습니다.' },
     { q: '코스 중간에 시간을 늘릴 수 있나요?', a: '가능한 경우가 많지만 다음 예약 상황에 따라 달라집니다. 연장은 남은 시간 기준으로 정산되는 구조가 일반적이므로, 시작 전에 미리 의사를 밝히는 편이 확실합니다.' },
     { q: '결제는 어떻게 하나요?', a: '현금과 카드가 모두 쓰이고 현장 후불이 일반적입니다. 현금영수증 발행 여부는 업소마다 다르므로 영수 처리가 필요하면 예약 단계에서 확인하세요. 과도한 선입금 요구는 권장하지 않습니다.' }
@@ -84,23 +88,23 @@ export function buildCourseGuide() {
   shell({
     path, eyebrow: 'COURSE & PRICE', h1: '코스 · 요금 안내',
     title: '마사지 코스·요금 기준 정리 | 시간별 선택 가이드',
-    desc: clampDesc(`60분부터 120분 이상까지 마사지 코스별 시간 배분과 요금 기준을 정리했습니다. 현재 정리된 요금대는 ${won(lo)}원~${won(hi)}원이며, 출장 마사지와 홈타이 요금 기준도 함께 안내합니다.`),
+    desc: clampDesc(`마사지 코스 요금은 60분 ${won(lo)}원, 90분 ${won(mid)}원, 120분 ${won(hi)}원으로 전 업소 동일합니다. 시간별 구성과 분당 단가, 출장 마사지·홈타이 요금 기준을 정리했습니다.`),
     keywords: '마사지 요금, 마사지 코스, 스웨디시 가격, 출장 마사지 요금, 홈타이 요금',
-    sub: `${won(lo)}원 ~ ${won(hi)}원 · 50분 ~ 130분`,
-    lead: '시간이 길수록 좋은 것이 아니라, 목적에 맞는 시간 배분이 중요합니다. 부위 집중과 전신 이완은 필요한 시간이 다릅니다.',
-    chips: [{ t: '60분 부위 집중', cls: 'chip--pine' }, { t: '90분 전신 기준', cls: 'chip--gold' }, { t: '120분 전신+추가', cls: 'chip--terra' }],
+    sub: `60분 ${won(lo)}원 · 90분 ${won(mid)}원 · 120분 ${won(hi)}원`,
+    lead: '전 업소가 같은 요금표를 씁니다. 가격을 비교할 필요가 없으니, 목적에 맞는 시간 배분만 정하면 됩니다. 부위 집중과 전신 이완은 필요한 시간이 다릅니다.',
+    chips: [{ t: `60분 ${won(lo)}원`, cls: 'chip--pine' }, { t: `90분 ${won(mid)}원`, cls: 'chip--gold' }, { t: `120분 ${won(hi)}원`, cls: 'chip--terra' }],
     faq,
-    body: `${section({ body: answerBox(`코스는 60분 부위 집중, 90분 전신 기준, 120분 이상 전신+추가 구성으로 나뉩니다. 현재 정리된 요금대는 ${won(lo)}원~${won(hi)}원이고, 비교는 총액보다 분당 단가로 하는 편이 정확합니다. 출장 마사지와 홈타이는 ${SITE.tel} 로 접수하며 이동 거리 기준이 별도로 적용될 수 있습니다.`) })}
+    body: `${section({ body: answerBox(`코스는 60분 ${won(lo)}원, 90분 ${won(mid)}원, 120분 ${won(hi)}원 세 가지이며 서울·경기·인천 전 업소가 동일한 요금표를 씁니다. 분당 단가는 각각 ${perMin(60)}원 · ${perMin(90)}원 · ${perMin(120)}원으로 시간이 길수록 내려갑니다. 출장 마사지와 홈타이는 ${SITE.tel} 로 접수하며 이동 거리 기준이 별도로 적용될 수 있습니다.`) })}
 ${section({
-      title: '시간별 기준', body: `<div class="tbl-wrap"><table class="tbl">
-    <caption class="sr">코스 시간별 특징과 권장 상황</caption>
-    <thead><tr><th scope="col">시간</th><th scope="col">구성</th><th scope="col">이럴 때</th></tr></thead>
+      title: '코스별 요금표', body: `<div class="tbl-wrap"><table class="tbl">
+    <caption class="sr">코스 시간별 요금과 권장 상황</caption>
+    <thead><tr><th scope="col">시간</th><th scope="col" style="text-align:right">요금</th><th scope="col" style="text-align:right">분당</th><th scope="col">구성 · 이럴 때</th></tr></thead>
     <tbody>
-      <tr><th scope="row">50~60분</th><td>목·어깨 또는 발 등 부위 집중</td><td>특정 부위만 뭉쳤을 때, 시간이 짧을 때</td></tr>
-      <tr><th scope="row">70~80분</th><td>전신 기본</td><td>전신을 가볍게 훑고 싶을 때</td></tr>
-      <tr><th scope="row">90~100분</th><td>전신 + 취약 부위 추가 배분</td><td>가장 많이 선택되는 기준 구간</td></tr>
-      <tr><th scope="row">110~130분</th><td>전신 + 두피 또는 발 관리</td><td>누적 피로가 큰 경우, 주말 일정</td></tr>
+      <tr><th scope="row">60분</th><td class="num">${won(lo)}원</td><td class="num">${perMin(60)}원</td><td>목·어깨 또는 발 등 부위 집중 — 특정 부위만 뭉쳤을 때</td></tr>
+      <tr><th scope="row">90분</th><td class="num">${won(mid)}원</td><td class="num">${perMin(90)}원</td><td>전신 + 취약 부위 추가 배분 — 가장 많이 선택되는 기준 코스</td></tr>
+      <tr><th scope="row">120분</th><td class="num">${won(hi)}원</td><td class="num">${perMin(120)}원</td><td>전신 + 두피 또는 발 관리 — 누적 피로가 클 때</td></tr>
     </tbody></table></div>
+  <div class="mt">${note(`<b>전 업소 동일 요금</b> <span>서울·경기·인천 어느 지역, 어느 업소를 고르셔도 위 요금표가 그대로 적용됩니다. 지역이나 업종에 따른 가격 차이가 없으므로 위치와 운영 시간만 보고 선택하시면 됩니다.</span>`)}</div>
   <div class="mt">${note(`<b>마지막 예약 시간</b> <span>코스 시간이 90분 이상이면, 운영 종료 시각에서 코스 시간을 뺀 값이 사실상 마지막 예약 시간입니다. 늦은 시간에는 이 계산을 먼저 해보세요.</span>`, 'note--pine')}</div>`
     })}
 ${section({
@@ -279,7 +283,7 @@ export function buildPolicy() {
 /* ── 검색 ──────────────────────────────────────────────── */
 export function buildSearch() {
   const path = '/search/';
-  const title = '지역 검색 | 행정구·행정동·로드샵 찾기';
+  const title = `지역 검색 — 행정구·행정동·로드샵 찾기 | ${SITE.brand}`;
   const desc = clampDesc(`행정구, 행정동, 역 이름, 업소명으로 바로 찾을 수 있습니다. 서울·경기·인천 ${STATS.districts}개 행정구와 ${STATS.dongs}개 행정동, 로드샵 ${ALL_SHOPS.length}곳이 대상입니다.`);
   const crumbs = [{ label: '홈', href: '/' }, { label: '검색', href: path }];
   add(path, layout({

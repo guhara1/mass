@@ -46,15 +46,26 @@ const FACIL = ['주차 가능', '발렛 안내', '개인 샤워실', '파우더�
 /* 이용 대상 — 시설 목록과 섞이면 모순이 생기므로 분리 */
 const GUESTS = ['남녀 모두 예약', '남성 고객 중심', '여성 고객 전용', '커플 동시 예약 가능'];
 
-const COURSE_SETS = [
-  [['집중 케어', 60], ['베이직 전신', 80], ['시그니처 전신', 100], ['딥 리커버리', 120]],
-  [['드라이 60', 60], ['오일 전신 90', 90], ['프리미엄 120', 120]],
-  [['숏 코스', 50], ['스탠다드', 70], ['롱 코스', 90], ['풀 케어', 130]],
-  [['목·어깨 집중', 60], ['전신 밸런스', 90], ['전신 + 두피', 110], ['야간 회복', 120]],
-  [['베이직', 60], ['디럭스', 90], ['로얄', 120]]
+/* ── 코스 · 요금 (전 업소 공통 고정) ───────────────────────
+ *  60분 120,000원 / 90분 150,000원 / 120분 180,000원
+ *  시간과 금액은 모든 업소가 동일하며, 코스 이름만 업소별로 달라집니다.
+ *  금액 변경은 이 배열만 고치면 표·카드·JSON-LD·본문 요금 문장까지
+ *  전 페이지에 자동 반영됩니다. */
+export const COURSE_PRICE = [
+  { min: 60,  price: 120000 },
+  { min: 90,  price: 150000 },
+  { min: 120, price: 180000 }
 ];
 
-const PRICE_BASE = { 60: 70000, 50: 60000, 70: 85000, 80: 95000, 90: 105000, 100: 118000, 110: 128000, 120: 140000, 130: 150000 };
+/* 코스 이름 세트 — [60분, 90분, 120분] */
+const COURSE_NAMES = [
+  ['집중 케어', '베이직 전신', '딥 리커버리'],
+  ['드라이 60', '오일 전신 90', '프리미엄 120'],
+  ['숏 코스', '스탠다드', '풀 케어'],
+  ['목·어깨 집중', '전신 밸런스', '전신 + 두피'],
+  ['베이직', '디럭스', '로얄'],
+  ['부위 집중', '시그니처 전신', '야간 회복']
+];
 
 /* 업소 설명(메타 디스크립션) — 출장 마사지 / 홈타이 키워드 필수 포함 */
 const DESC_T = [
@@ -115,12 +126,6 @@ function makeName(r, dong) {
   return fb;
 }
 
-function priceFor(min, tier, r) {
-  const base = PRICE_BASE[min] || Math.round(min * 1150);
-  const adj = Math.round(base * tier / 1000000) * 1000;
-  return adj + r.pick([0, 0, 0, 5000, -5000]);
-}
-
 function buildShop(dong, idx) {
   const seed = `${dong.region.slug}/${dong.district.slug}/${dong.slug}/${idx}`;
   const r = rng('shop:' + seed);
@@ -131,8 +136,8 @@ function buildShop(dong, idx) {
   const style = r.pick(STYLES);
   const open = r.pick(OPENS);
   const code = (dong.district.slug.slice(0, 2) + dong.slug.slice(0, 2)).toUpperCase() + '-' + String(r.int(1000, 9999));
-  const tier = r.pick([950, 1000, 1000, 1050, 1100, 1150]);
-  const courses = r.pick(COURSE_SETS).map(([cn, min]) => ({ name: cn, min, price: priceFor(min, tier, r) }));
+  const names = r.pick(COURSE_NAMES);
+  const courses = COURSE_PRICE.map((c, i) => ({ name: names[i], min: c.min, price: c.price }));
   const facilities = r.sample(FACIL, r.int(5, 7));
   const guests = r.pick(GUESTS);
   const areaLabel = `${dong.district.short || dong.district.name} ${dong.name}`;
