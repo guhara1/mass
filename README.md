@@ -24,7 +24,7 @@ npm run indexnow  # 네이버·빙·얀덱스에 전체 URL 통보 (배포 후 �
 | 키 | 값 | 효과 |
 |---|---|---|
 | `SITE_URL` | `https://내도메인.com` | canonical · sitemap · JSON-LD 절대경로 전부 교체 |
-| `NAVER_VERIFY` | 서치어드바이저 메타값 | `<meta name="naver-site-verification">` 자동 출력 |
+| `NAVER_VERIFY` | (이미 코드에 반영됨) | 기본값이 들어 있어 설정 불필요 — 바꿀 때만 사용 |
 | `GOOGLE_VERIFY` | 서치콘솔 메타값 | `<meta name="google-site-verification">` 자동 출력 |
 
 > `SITE_URL` 을 넣지 않으면 `https://mass24.netlify.app` 가 기본값으로 쓰입니다.
@@ -260,7 +260,9 @@ d('강남구', [37.5173, 127.0473], {
 ### 배포 후 순서
 
 **1. 네이버 서치어드바이저** (searchadvisor.naver.com)
-1. 사이트 등록 → 소유확인 (메타태그 방식 → 환경변수 `NAVER_VERIFY` 에 값 입력 후 재배포)
+1. 사이트 등록 → 소유확인 — **메타태그는 이미 전 페이지에 들어가 있습니다**
+   (`src/data/site.js` 의 `verify.naver`). 배포 후 "소유확인" 버튼만 누르면 됩니다.
+   소유확인이 끝나도 태그는 지우지 마세요 — 네이버가 주기적으로 재검증합니다.
 2. 요청 → 사이트맵 제출 → `sitemap.xml`
 3. 요청 → **RSS 제출** → `rss.xml` ← 네이버는 사이트맵과 RSS 를 **둘 다** 넣었을 때 빠릅니다
 4. 검증 → robots.txt / 웹페이지 최적화 로 경고 확인

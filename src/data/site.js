@@ -20,10 +20,11 @@ export const SITE = {
   telLabel: '출장마사지 전화연결',
   telSubLabel: '24시 상담 · 통화료 무료',
 
-  // ---- 검증 메타 (발급 후 값만 채우면 자동 출력) -------------------------
+  // ---- 검증 메타 (발급 후 값만 채우면 전 페이지 자동 출력) ---------------
   verify: {
-    naver: process.env.NAVER_VERIFY || '',   // 네이버 서치어드바이저
-    google: process.env.GOOGLE_VERIFY || '', // 구글 서치콘솔
+    // 네이버 서치어드바이저 — 소유확인 완료 후에도 태그는 유지해야 합니다(제거 시 재검증 실패)
+    naver: process.env.NAVER_VERIFY || '92c99c0f431c87acefa5afc0e6ccba5c912e27cc',
+    google: process.env.GOOGLE_VERIFY || '', // 구글 서치콘솔 발급 후 입력
     bing: process.env.BING_VERIFY || ''
   },
 
