@@ -58,6 +58,7 @@ const kindOf = p => {
 const titles = new Map(), descs = new Map(), canons = new Map();
 const known = new Set(docs.map(d => d.path));
 const areaTexts = [];
+const shopTexts = [];
 let minChars = Infinity, shopOk = 0, telOk = 0;
 
 for (const d of docs) {
@@ -111,6 +112,7 @@ for (const d of docs) {
 
   /* 2) 로드샵 디스크립션 키워드 + 모바일 고정 전화바 */
   if (k === 'shop') {
+    shopTexts.push({ path: d.path, t: text(d.html) });
     const okKw = desc.includes('출장 마사지') && desc.includes('홈타이');
     if (!okKw) E(`${d.path} 디스크립션 키워드 누락 (출장 마사지/홈타이)`);
     if (!/class="callbar"/.test(d.html)) E(`${d.path} 모바일 고정 전화바 없음`);
@@ -126,30 +128,40 @@ for (const d of docs) {
   }
 }
 
-/* 7) 근접 중복 검사 — 지역 페이지 간 5-gram Jaccard */
+/* 7) 근접 중복 검사 — 12-gram Jaccard */
 function shingles(t) {
   const s = new Set();
   const clean = t.replace(/[^가-힣a-zA-Z0-9]/g, '');
   for (let i = 0; i + 12 <= clean.length; i += 3) s.add(clean.slice(i, i + 12));
   return s;
 }
-const sh = areaTexts.map(a => ({ path: a.path, s: shingles(a.t) }));
-let worst = { v: 0 };
-const SAMPLE = 1400;   /* 전체 쌍은 과하므로 샘플링 */
-let step = Math.max(1, Math.floor((sh.length * (sh.length - 1) / 2) / SAMPLE));
-let c = 0;
-for (let i = 0; i < sh.length; i++) {
-  for (let j = i + 1; j < sh.length; j++) {
-    if (c++ % step) continue;
-    const A = sh[i].s, B = sh[j].s;
-    let inter = 0;
-    for (const x of A) if (B.has(x)) inter++;
-    const v = inter / (A.size + B.size - inter);
-    if (v > worst.v) worst = { v, a: sh[i].path, b: sh[j].path };
+function worstPair(list, sampleTarget, label) {
+  const sh = list.map(a => ({ path: a.path, s: shingles(a.t) }));
+  const pairs = sh.length * (sh.length - 1) / 2;
+  const step = Math.max(1, Math.floor(pairs / sampleTarget));
+  let worst = { v: 0 }, c = 0, sum = 0, n = 0;
+  for (let i = 0; i < sh.length; i++) {
+    for (let j = i + 1; j < sh.length; j++) {
+      if (c++ % step) continue;
+      const A = sh[i].s, B = sh[j].s;
+      let inter = 0;
+      for (const x of A) if (B.has(x)) inter++;
+      const v = inter / (A.size + B.size - inter);
+      sum += v; n++;
+      if (v > worst.v) worst = { v, a: sh[i].path, b: sh[j].path };
+    }
   }
+  worst.avg = n ? sum / n : 0;
+  worst.label = label;
+  return worst;
 }
-if (worst.v > 0.5) E(`지역 페이지 유사도 과다 ${(worst.v * 100).toFixed(1)}%: ${worst.a} ↔ ${worst.b}`);
-else if (worst.v > 0.35) W(`지역 페이지 최대 유사도 ${(worst.v * 100).toFixed(1)}%: ${worst.a} ↔ ${worst.b}`);
+
+const worst = worstPair(areaTexts, 1500, '지역');
+const worstShop = worstPair(shopTexts, 1500, '로드샵');
+for (const w of [worst, worstShop]) {
+  if (w.v > 0.55) E(`${w.label} 페이지 유사도 과다 ${(w.v * 100).toFixed(1)}%: ${w.a} ↔ ${w.b}`);
+  else if (w.v > 0.42) W(`${w.label} 페이지 최대 유사도 ${(w.v * 100).toFixed(1)}%: ${w.a} ↔ ${w.b}`);
+}
 
 /* ── 리포트 ───────────────────────────────────────────── */
 const avg = docs.reduce((a, d) => a + d.size, 0) / docs.length / 1024;
@@ -162,7 +174,8 @@ console.log(`
   전화 링크 포함    ${telOk}/${docs.length}
   로드샵 키워드 OK  ${shopOk}
   지역 본문 최소    ${minChars === Infinity ? '-' : minChars + '자'}
-  최대 유사도       ${(worst.v * 100).toFixed(1)}%  ${worst.a ? `(${worst.a} ↔ ${worst.b})` : ''}
+  지역 유사도       최대 ${(worst.v * 100).toFixed(1)}% / 평균 ${(worst.avg * 100).toFixed(1)}%
+  로드샵 유사도     최대 ${(worstShop.v * 100).toFixed(1)}% / 평균 ${(worstShop.avg * 100).toFixed(1)}%
   평균 페이지 용량  ${avg.toFixed(0)} KB
 ────────────────────────────────────────
   오류 ${err.length}건 / 경고 ${warn.length}건

@@ -43,7 +43,7 @@ function footer() {
     <div class="ft__grid">
       <div>
         <div class="ft__logo">${logoSvg(SITE.brand, SITE.brandEn)}</div>
-        <p class="ft__desc">${esc(SITE.tagline)}. 서울·경기·인천의 행정구와 대표 행정동 단위로 코스·요금·운영시간을 정리하고, 출장 마사지와 홈타이 예약을 한 번호로 연결합니다.</p>
+        <p class="ft__desc">${esc(SITE.tagline)}. 서울·경기·인천의 행정구와 행정동 단위로 코스·요금·운영시간을 정리하고, 출장 마사지와 홈타이 예약을 한 번호로 연결합니다.</p>
         <p class="ft__desc" style="margin-top:10px"><strong>${esc(SITE.operator.name)}</strong> · ${esc(SITE.operator.role)}<br>등록 기준: ${esc(SITE.operator.policy)}</p>
       </div>
       <div>

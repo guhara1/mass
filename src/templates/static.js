@@ -38,7 +38,7 @@ ${faq ? faqBlock(faq) : ''}`
 export function buildAreasIndex() {
   const path = '/areas/';
   const title = `행정구·행정동 전체 목록 — 서울·경기·인천 마사지 지역 | ${SITE.brand}`;
-  const desc = clampDesc(`서울 ${REGIONS[0].districts.length}개 자치구, 경기 ${REGIONS[1].districts.length}개 행정구·시, 인천 ${REGIONS[2].districts.length}개 구·군과 대표 행정동 ${STATS.dongs}곳 전체 목록. 지역을 눌러 코스·요금과 출장 마사지·홈타이 안내를 확인하세요.`);
+  const desc = clampDesc(`서울 ${REGIONS[0].districts.length}개 자치구, 경기 ${REGIONS[1].districts.length}개 행정구·시, 인천 ${REGIONS[2].districts.length}개 구·군과 행정동 ${STATS.dongs}곳 전체 목록. 지역을 눌러 코스·요금과 출장 마사지·홈타이 안내를 확인하세요.`);
 
   const body = REGIONS.map(r => section({
     id: r.slug, title: `${r.full} — ${r.unit} ${r.districts.length}곳`, more: `/${r.slug}/`,
@@ -62,7 +62,7 @@ export function buildAreasIndex() {
 ${heroH1({
       seed: path, eyebrow: 'AREA INDEX', title: '행정구 · 행정동 전체 목록',
       sub: `${STATS.districts}개 행정구 · ${STATS.dongs}개 행정동`,
-      lead: '숫자로 나뉘는 행정동(1동·2동·3동)은 대표 1곳으로 묶어 표기했습니다. 행정구를 먼저 고르고, 상권 성격이 다른 대표 행정동을 비교해 보세요.',
+      lead: '서울·경기·인천의 행정동을 모두 담았습니다. 숫자로만 나뉘는 동(1동·2동·3동)은 대표 1곳으로 묶어 표기했습니다. 행정구를 먼저 고르고 상권 성격이 다른 동을 비교해 보세요.',
       chips: [{ t: `행정구 ${STATS.districts}`, cls: 'chip--pine' }, { t: `행정동 ${STATS.dongs}`, cls: 'chip--gold' }, { t: `로드샵 ${ALL_SHOPS.length}`, cls: 'chip--terra' }],
       extra: `<div class="mt">${stats([{ v: String(REGIONS[0].districts.length), l: '서울 자치구' }, { v: String(REGIONS[1].districts.length), l: '경기 행정구·시' }, { v: String(REGIONS[2].districts.length), l: '인천 구·군' }])}</div>`
     })}
@@ -145,7 +145,7 @@ export function buildHowTo() {
     body: `${section({ body: answerBox(`이용 순서는 ① 행정구·행정동 선택 ② 업소 페이지에서 코스·요금 확인 ③ ${SITE.tel} 로 전화해 지역·시간·코스 전달 ④ 방문 또는 출장 진행입니다. 상담에서는 코스 길이, 업종, 압의 세기, 결제 방식 네 가지를 확인하며 통화는 2~3분 안에 끝납니다.`) })}
 ${section({
       title: '단계별 흐름', body: `<div class="stack">${[
-        ['1단계 · 지역 선택', '행정구에서 바로 고르지 말고 대표 행정동까지 들어가 보세요. 같은 구 안에서도 오피스권과 주거권의 운영 시간과 응대 성격이 다릅니다.'],
+        ['1단계 · 지역 선택', '행정구에서 바로 고르지 말고 행정동까지 들어가 보세요. 같은 구 안에서도 오피스권과 주거권의 운영 시간과 응대 성격이 다릅니다.'],
         ['2단계 · 조건 비교', '업소 페이지에서 코스별 시간과 요금, 운영 시간, 시설, 이용 대상을 확인합니다. 운영 시간과 마지막 예약 시간만 알아도 후보가 절반으로 줄어듭니다.'],
         ['3단계 · 전화 상담', `${SITE.tel} 로 연결해 지역, 희망 시간, 코스 길이를 말합니다. 방문형과 출장 중 어느 쪽인지 먼저 정해두면 상담이 훨씬 빠릅니다.`],
         ['4단계 · 도착 · 준비', '방문형은 건물명과 층수를 미리 받아두면 헤매지 않습니다. 출장이라면 주소지와 입구 안내가 필요하고, 홈타이는 바닥 공간과 수건만 준비하면 됩니다.'],
@@ -261,7 +261,7 @@ export function buildPolicy() {
     body: section({
       body: prose(`
       ${H('1. 사이트 성격')}
-      ${P(`${esc(jo(SITE.brand, '은'))} 서울·경기·인천의 행정구와 대표 행정동 단위로 마사지 로드샵 정보를 정리해 제공하는 <strong>안내 매체</strong>입니다. 직접 마사지 서비스를 제공하는 사업자가 아니며, 예약 상담을 연결하는 역할을 합니다.`)}
+      ${P(`${esc(jo(SITE.brand, '은'))} 서울·경기·인천의 행정구와 행정동 단위로 마사지 로드샵 정보를 정리해 제공하는 <strong>안내 매체</strong>입니다. 직접 마사지 서비스를 제공하는 사업자가 아니며, 예약 상담을 연결하는 역할을 합니다.`)}
       ${H('2. 현재 노출 정보의 상태')}
       ${P(`현재 사이트에 노출되는 ${ALL_SHOPS.length}곳의 업소 정보는 <strong>실입점 전 샘플 데이터</strong>입니다. 상호, 코스 구성, 요금, 운영 시간은 조건을 비교하는 방식을 보여주기 위해 생성한 예시이며 실제 업체가 아닙니다. 실입점 업소로 순차 교체되며, 교체 시점에는 각 페이지의 고지 문구가 제거됩니다.`)}
       ${P('별점, 후기, 순위처럼 조작 소지가 있는 지표는 의도적으로 넣지 않았습니다. 운영 시간, 코스 시간, 요금, 시설처럼 확인 가능한 항목만 제공합니다.')}

@@ -33,21 +33,21 @@ export function buildHome() {
   const path = '/';
   const featured = rng('home:featured').sample(ALL_SHOPS, 6);
   const title = `${SITE.brand} | 서울·경기·인천 마사지 로드샵 지역 안내`;
-  const desc = clampDesc(`서울 ${REGIONS[0].districts.length}개 자치구, 경기 ${REGIONS[1].districts.length}개 행정구·시, 인천 ${REGIONS[2].districts.length}개 구·군의 대표 행정동 ${STATS.dongs}곳을 기준으로 마사지 로드샵 코스·요금·운영시간을 정리했습니다. 출장 마사지와 홈타이는 ${SITE.tel} 로 접수합니다.`);
+  const desc = clampDesc(`서울 ${REGIONS[0].districts.length}개 자치구, 경기 ${REGIONS[1].districts.length}개 행정구·시, 인천 ${REGIONS[2].districts.length}개 구·군의 행정동 ${STATS.dongs}곳 전체를 기준으로 마사지 로드샵 코스·요금·운영시간을 정리했습니다. 출장 마사지와 홈타이는 ${SITE.tel} 로 접수합니다.`);
 
   const regionCards = REGIONS.map(r => `<a class="card" href="/${r.slug}/" style="text-decoration:none">
     <div class="card__body" style="gap:8px">
       <span class="chip chip--pine">${esc(r.unit)} ${r.districts.length}곳</span>
       <span class="card__t" style="font-size:1.3rem">${esc(r.full)}</span>
       <p class="card__desc" style="-webkit-line-clamp:4">${esc(r.summary)}</p>
-      <div class="card__foot"><span class="muted">대표 행정동 ${r.districts.reduce((a, d) => a + d.dongs.length, 0)}곳</span><span style="font-weight:800;color:var(--pine)">지역 보기 →</span></div>
+      <div class="card__foot"><span class="muted">행정동 ${r.districts.reduce((a, d) => a + d.dongs.length, 0)}곳</span><span style="font-weight:800;color:var(--pine)">지역 보기 →</span></div>
     </div>
   </a>`).join('');
 
   const body = `${hero({
     seed: 'home', scheme: 'pine', eyebrow: `${SITE.brandEn} · SEOUL / GYEONGGI / INCHEON`,
     title: SITE.claim, sub: SITE.tagline,
-    lead: `행정구에서 바로 고르지 말고 대표 행정동까지 들어가 보세요. 같은 구 안에서도 상권 성격에 따라 운영 시간과 응대 방식이 다릅니다. ${STATS.districts}개 행정구 · ${STATS.dongs}개 행정동 단위로 코스와 요금을 비교할 수 있게 정리했습니다.`,
+    lead: `행정구에서 바로 고르지 말고 행정동까지 들어가 보세요. 같은 구 안에서도 상권 성격에 따라 운영 시간과 응대 방식이 다릅니다. ${STATS.districts}개 행정구 · ${STATS.dongs}개 행정동 단위로 코스와 요금을 비교할 수 있게 정리했습니다.`,
     chips: [{ t: `행정구 ${STATS.districts}곳`, cls: 'chip--pine' }, { t: `행정동 ${STATS.dongs}곳`, cls: 'chip--gold' }, { t: '출장 마사지 · 홈타이', cls: 'chip--terra' }]
   })}
 
@@ -57,12 +57,12 @@ ${section({
     title: '이렇게 쓰면 빠릅니다',
     body: `<div class="grid grid--2">
     ${[['1. 행정구 선택', '서울·경기·인천 중 지역을 고르고 행정구로 들어갑니다. 구 페이지에는 권역 성격과 교통 축이 정리돼 있습니다.'],
-      ['2. 행정동 비교', '구마다 대표 행정동 3곳이 있습니다. 상권 성격이 다르니 이동 시간이 비슷하면 성격으로 고르세요.'],
+      ['2. 행정동 비교', '행정구 안의 행정동이 모두 들어 있습니다. 상권 성격이 다르니 이동 시간이 비슷하면 성격으로 고르세요.'],
       ['3. 코스·요금 확인', '업소 페이지에서 코스별 시간과 요금, 시설, 이용 대상을 확인합니다.'],
       ['4. 전화 한 통', `${SITE.tel} 로 지역과 희망 시간을 말하면 방문형과 출장 마사지·홈타이 모두 한 번에 접수됩니다.`]]
       .map(([t, d]) => `<div class="tile" style="align-items:flex-start;padding:18px"><span><span class="tile__t">${esc(t)}</span><p class="muted" style="margin-top:6px;font-size:.92rem;line-height:1.75">${esc(d)}</p></span></div>`).join('')}
   </div>
-  <div class="mt">${stats([{ v: `${STATS.districts}`, l: '행정구·시' }, { v: `${STATS.dongs}`, l: '대표 행정동' }, { v: `${ALL_SHOPS.length}`, l: '정리된 로드샵' }])}</div>`
+  <div class="mt">${stats([{ v: `${STATS.districts}`, l: '행정구·시' }, { v: `${STATS.dongs}`, l: '행정동 전체' }, { v: `${ALL_SHOPS.length}`, l: '정리된 로드샵' }])}</div>`
   })}
 
 ${section({ title: '최근 정리된 로드샵', more: '/areas/', moreLabel: '행정구 전체', body: `<div class="grid grid--shop">${featured.map(s => shopCard(s)).join('')}</div><div class="mt">${SAMPLE_NOTE}</div>` })}
@@ -110,7 +110,7 @@ export function buildRegion(r) {
   const dongTotal = r.districts.reduce((a, d) => a + d.dongs.length, 0);
   const shopTotal = r.districts.reduce((a, d) => a + shopsOfDistrict(d).length, 0);
   const title = `${r.name} 마사지 로드샵 — ${r.unit} ${r.districts.length}곳 지역별 안내 | ${SITE.brand}`;
-  const desc = clampDesc(`${r.full} ${r.unit} ${r.districts.length}곳과 대표 행정동 ${dongTotal}곳의 마사지 로드샵 ${shopTotal}건을 정리했습니다. 코스·요금·운영시간 비교와 출장 마사지·홈타이 예약은 ${SITE.tel}.`);
+  const desc = clampDesc(`${r.full} ${r.unit} ${r.districts.length}곳과 행정동 ${dongTotal}곳 전체의 마사지 로드샵 ${shopTotal}건을 정리했습니다. 코스·요금·운영시간 비교와 출장 마사지·홈타이 예약은 ${SITE.tel}.`);
   const crumbs = [{ label: '홈', href: '/' }, { label: r.full, href: path }];
 
   const groups = r.slug === 'gyeonggi'
@@ -171,8 +171,11 @@ export function buildDistrict(dd) {
   const ctx = makeCtx({ region: r, district: dd, shops });
   const content = buildAreaContent({ seed: path, ctx });
   const v = variantPicker('ddesc:' + path);
+  /* 행정구 페이지는 미리보기만 — 전체 목록은 행정동 페이지가 담당(페이지 용량·중복 관리) */
+  const preview = rng('dpre:' + path).sample(shops, 9);
 
-  const title = `${dd.name} 마사지 — ${dd.dongs.map(x => x.name.replace(/(동|읍|면)$/, '')).join('·')} 로드샵 안내 | ${SITE.brand}`;
+  const dongHead = dd.dongs.slice(0, 3).map(x => x.name.replace(/(동|읍|면)$/, '')).join('·');
+  const title = `${dd.name} 마사지 — ${dongHead} 등 ${dd.dongs.length}개 동 로드샵 | ${SITE.brand}`;
   const desc = clampDesc(v(DDESC, 'd')(ctx));
   const crumbs = [{ label: '홈', href: '/' }, { label: r.full, href: `/${r.slug}/` }, { label: dd.name, href: path }];
 
@@ -196,16 +199,22 @@ export function buildDistrict(dd) {
   const body = `<div class="wrap">${breadcrumb(crumbs)}</div>
 ${heroH1({
     seed: path, eyebrow: `${r.name.toUpperCase()} · ${dd.slug.toUpperCase()}`,
-    title: `${dd.name} 마사지`, sub: `대표 행정동 ${dd.dongs.length}곳 · 로드샵 ${shops.length}곳`,
+    title: `${dd.name} 마사지`, sub: `행정동 ${dd.dongs.length}곳 · 로드샵 ${shops.length}곳`,
     lead: dd.zone + '입니다. ' + (dd.hubs.length ? `${jo(dd.hubs.join(' · '), '을')} 기준점으로 삼으면 이동 동선이 단순해집니다.` : ''),
     chips: [{ t: dd.night, cls: 'chip--terra' }, ...dd.lines.slice(0, 3).map(l => ({ t: l, cls: 'chip--pine' }))],
     extra: `<div class="hero__cta"><a class="btn btn--call" href="${PHONE_HREF}" data-loc="district-hero">${ICON.phone}출장마사지 ${esc(SITE.tel)}</a><a class="btn btn--ghost" href="#dongs">행정동 선택</a></div>
     <div class="mt">${answerBox(content.answer)}</div>`
   })}
 
-${section({ id: 'dongs', title: `${dd.name} 대표 행정동`, body: `<div class="grid grid--shop">${dongCards}</div>${nearStrip ? `<h3 style="margin:26px 0 8px;font-size:1rem;color:var(--ink-2)">인접 지역</h3>${nearStrip}` : ''}` })}
+${section({ id: 'dongs', title: `${dd.name} 행정동 ${dd.dongs.length}곳`, body: `<div class="grid grid--shop">${dongCards}</div>${nearStrip ? `<h3 style="margin:26px 0 8px;font-size:1rem;color:var(--ink-2)">인접 지역</h3>${nearStrip}` : ''}` })}
 
-${section({ title: `${dd.name} 로드샵`, body: `<div class="grid grid--shop">${shops.map(s => shopCard(s)).join('')}</div><div class="mt">${SAMPLE_NOTE}</div>` })}
+${section({
+    title: `${dd.name} 로드샵 미리보기`,
+    more: dd.dongs.length ? dongPath(dd.dongs[0]) : null, moreLabel: '행정동별로 보기',
+    body: `<div class="grid grid--shop">${preview.map(s => shopCard(s)).join('')}</div>
+  ${shops.length > preview.length ? `<p class="muted mt">${dd.name} 전체 ${shops.length}곳 가운데 ${preview.length}곳만 표시했습니다. 나머지는 위의 행정동 페이지에서 확인하세요.</p>` : ''}
+  <div class="mt">${SAMPLE_NOTE}</div>`
+  })}
 
 ${section({ title: `${dd.name} 지역 가이드`, body: proseBlock(content) })}
 
@@ -215,11 +224,11 @@ ${faqBlock(content.faq, `${dd.name} 마사지 자주 묻는 질문`)}`;
     active: `/${r.slug}/`, bottom: fab(),
     seo: {
       path, title, desc,
-      keywords: `${dd.name} 마사지, ${dd.name} 출장 마사지, ${dd.name} 홈타이, ${dd.dongs.map(x => x.name + ' 마사지').join(', ')}`,
+      keywords: `${dd.name} 마사지, ${dd.name} 출장 마사지, ${dd.name} 홈타이, ${dd.dongs.slice(0, 6).map(x => x.name + ' 마사지').join(', ')}`,
       geo: { region: r.geoRegion, pos: dd.geo }, placename: `${r.full} ${dd.name}`,
       graph: [orgNode(), siteNode(), breadcrumbNode(crumbs, path),
         webPageNode({ path, title, desc, geo: dd.geo, placename: `${r.full} ${dd.name}` }),
-        itemListNode({ path, name: `${dd.name} 대표 행정동`, items: dd.dongs.map(g => ({ name: g.name, path: dongPath(g) })) }),
+        itemListNode({ path, name: `${dd.name} 행정동`, items: dd.dongs.map(g => ({ name: g.name, path: dongPath(g) })) }),
         faqNode(content.faq, path)]
     },
     body
@@ -369,6 +378,7 @@ ${section({
     title: '위치와 이용 안내',
     body: `<div class="prose">
     <p>${esc(s.intro)}</p>
+    <p>${esc(s.place)}</p>
     <h2>이용 안내</h2>
     ${s.policy.map(p => `<p>${esc(p)}</p>`).join('')}
     <h2>받기 전 알아둘 점</h2>
