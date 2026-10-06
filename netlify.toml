@@ -25,9 +25,28 @@
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/sitemap.xml"
+  for = "/*.xml"
   [headers.values]
     Content-Type = "application/xml; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
+
+# IndexNow 키 파일 — 캐시를 길게 잡으면 검증이 꼬일 수 있어 짧게 둡니다.
+[[headers]]
+  for = "/*.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/search-index.json"
+  [headers.values]
     Cache-Control = "public, max-age=3600"
 
 # 정적 HTML 이므로 404 는 Netlify 기본 404.html 로 처리됩니다.

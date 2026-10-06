@@ -1,13 +1,15 @@
 # 서울·경기·인천 마사지 로드샵 지역 디렉터리
 
 행정구 **70곳** · 행정동 **675곳**(서울 236 · 경기 357 · 인천 82) · 로드샵 **1,678곳**
-= 총 **2,435 페이지**를 의존성 없이(Node 내장 모듈만) 정적 생성하는 사이트입니다.
+· 주제 허브 **13곳** = 총 **2,448 페이지**를 의존성 없이(Node 내장 모듈만) 정적 생성합니다.
 Netlify 배포 기준으로 구성돼 있습니다.
 
 ```
-npm run build     # dist/ 생성 (약 3.6초, 약 108MB)
+npm run build     # dist/ 생성 (약 4.6초, 약 108MB)
 npm run dev       # 빌드 후 http://localhost:4321 미리보기
-npm run audit     # 1,500자·키워드·중복·링크·구조화데이터 전수 검사
+npm run audit     # 1,500자·키워드·중복·링크·스키마·사이트맵 전수 검사
+npm run check     # 조사 린트 + 빌드 + 감사 한 번에
+npm run indexnow  # 네이버·빙·얀덱스에 전체 URL 통보 (배포 후 실행)
 ```
 
 ---
@@ -142,7 +144,7 @@ d('강남구', [37.5173, 127.0473], {
 | 문장 풀 | `src/content/pools.js` | 섹션별 제목 6종 + 문장 12종 → 시드 기반 조합 |
 | 실데이터 주입 | `makeCtx()` | 역·랜드마크·노선·상권성격·요금대·운영시간·업종분포를 문장에 직접 삽입 |
 | 조사 자동화 | `src/lib/kor.js` | `역삼동는` 같은 기계적 티를 제거 (`jo()` 미경유 시 `scripts/josa-check.mjs` 가 실패) |
-| 유사도 측정 | `scripts/audit.mjs` | 12-gram Jaccard — **지역 페이지 최대 15.3%(평균 5.5%), 로드샵 최대 28.6%(평균 9.0%)** |
+| 유사도 측정 | `scripts/audit.mjs` | 12-gram Jaccard — **지역 페이지 최대 14.5%(평균 5.6%), 로드샵 최대 27.8%(평균 9.8%)** |
 | 행정구 페이지 경량화 | `src/templates/pages.js` | 업소 전체 목록은 행정동 페이지가 담당하고, 행정구 페이지는 9곳 미리보기만 노출 |
 
 본문은 행정구·행정동 페이지 기준 **순수 본문 2,800~3,100자**(요구치 1,500자의 약 2배)이며,
@@ -173,6 +175,129 @@ d('강남구', [37.5173, 127.0473], {
 - 운영 주체·등록 기준·최근 확인일을 푸터와 `/policy/` 에 명시 (출처 신뢰도)
 - 정보 충실도: 1,500자 이상 본문 + 비교표 + 체크리스트 + FAQ
 - RSS 제출 경로 제공, `dateModified` 로 최신성 신호
+
+---
+
+## 6-A. 내부링크 설계 (롱테일)
+
+모든 페이지 하단에 **링크 허브**(`src/templates/links.js`)가 붙습니다. 단순 나열이 아니라
+실제 관련성이 있는 기준으로 묶고, 앵커 텍스트는 목적지가 실제로 다루는 내용과 일치시킵니다.
+(과장 앵커는 스팸 신호가 되므로 쓰지 않습니다.)
+
+| 묶음 기준 | 어떻게 뽑는가 |
+|---|---|
+| 업종별 | 그 지역에 실제 존재하는 업종을 앞으로 정렬해 주제 허브로 연결 |
+| 상황별 | 24시 운영 · 심야 예약 · 숙소 출장 + 출장/홈타이 안내 |
+| 비슷한 상권 | 같은 상권 유형코드(`office`/`retail`/`univ`…)를 가진 **다른 행정구**의 동 |
+| 같은 노선 | 같은 지하철 노선을 공유하는 다른 행정구의 동 |
+| 인접 지역 | `near` 에 선언한 인접 행정구 |
+| 많이 찾는 행정동 | 상업·업무·환승·관광·대학 성격 동에서 시드 샘플 |
+
+**주제 허브 13곳**(`/topic/`)이 롱테일 거점입니다. 업종 9종(스웨디시·타이마사지·아로마테라피·
+딥티슈·건식마사지·로미로미·스포츠마사지·발마사지·바디&두피)과 상황 3종(24시 운영·심야 예약·
+숙소 출장)으로, 각각 고유 본문 + FAQ + 행정구별 분포 막대 + 해당 업종 로드샵을 담습니다.
+
+> 지역×업종 조합 페이지를 수천 개 찍어내면 얇은 콘텐츠가 되므로, 주제 허브는 소수로 두고
+> 본문을 충실하게 쓰는 쪽을 택했습니다.
+
+**결과** (감사 기준)
+
+| | 적용 전 | 적용 후 |
+|---|---:|---:|
+| 홈 고유 내부링크 | 16 | 38 |
+| 광역 지역 | 41 | 63 |
+| 행정구 | 34 | 46 |
+| 행정동 | 28 | 56 |
+| 로드샵 | 14 | 32 |
+| 안내 페이지 | 10 | 28~30 |
+
+모든 페이지의 내부링크 **최소 28개**, 인바운드 링크가 0인 고립 페이지 **0건**입니다.
+(`npm run audit` 가 20개 미만이거나 고립된 페이지를 오류로 잡습니다.)
+
+---
+
+## 6-B. 구조화 데이터 (전 페이지)
+
+페이지 종류별로 아래 타입이 **필수**이며, 하나라도 빠지면 감사에서 오류가 납니다.
+
+| 페이지 | JSON-LD `@graph` 구성 |
+|---|---|
+| 홈 | Organization · WebSite · BreadcrumbList · **CollectionPage** · Place×3 · Service×2 · ReserveAction · ItemList · FAQPage |
+| 광역 지역 | 위와 동일 (Place 는 해당 시/도) |
+| 행정구 | + Place 계층 (구 → 시/도 → 대한민국) |
+| 행정동 | + Place 계층 (동 → 구 → 시/도 → 대한민국) |
+| 로드샵 | Organization · WebSite · BreadcrumbList · **ItemPage** · Place 계층 · **HealthAndBeautyBusiness**(코스별 Offer 포함) · ReserveAction · FAQPage |
+| 주제 허브 | CollectionPage · **Service**(OfferCatalog) · ReserveAction · ItemList · FAQPage |
+| 안내·정책 | WebPage · Service · ReserveAction · (FAQPage) |
+| 검색 | **SearchResultsPage** · ReserveAction |
+
+- `Place` 는 `containedInPlace` 로 **동 → 구 → 시/도 → 대한민국** 계층을 이어 붙입니다 (GEO 신호)
+- `Service` 는 출장 마사지 / 홈타이를 각각 선언하고 `areaServed` 로 해당 지역 Place 를 가리킵니다
+- `ReserveAction` 의 target 이 `tel:` 이라 음성 비서·AI 답변에서 전화 예약 동작으로 인식됩니다 (AEO)
+- `speakable` 로 「한눈에 보기」 블록과 FAQ 를 발췌 대상으로 지정합니다
+
+---
+
+## 6-C. 색인 — 네이버·구글 빠르게 태우기
+
+### 빌드가 만들어 주는 것
+
+| 파일 | 내용 |
+|---|---|
+| `/sitemap.xml` | **사이트맵 색인** — 아래 7개 파일을 가리킴 |
+| `/sitemap-core.xml` | 홈·광역지역·주제·안내 (24건) |
+| `/sitemap-districts.xml` | 행정구 70건 |
+| `/sitemap-dong-{seoul,gyeonggi,incheon}.xml` | 행정동 675건 |
+| `/sitemap-shop-{1,2}.xml` | 로드샵 1,678건 (900건씩 분할) |
+| `/robots.txt` | Yeti·NaverBot·Googlebot·Daum·bingbot 명시 허용 + 사이트맵 전부 나열 |
+| `/rss.xml` | 202개 항목 (주제 13 + 행정구 70 + 행정동 120) |
+| `/<IndexNow키>.txt` | IndexNow 검증용 공개 토큰 |
+
+> **Crawl-delay 는 넣지 않습니다.** 네이버 Yeti 에 Crawl-delay 를 주면 수집 속도가 오히려
+> 느려집니다. 한 파일에 몰지 않고 섹션별로 나눈 이유는, 검색엔진 도구에서 어느 묶음이
+> 색인되고 어느 묶음이 막혔는지 바로 보이게 하기 위해서입니다.
+
+### 배포 후 순서
+
+**1. 네이버 서치어드바이저** (searchadvisor.naver.com)
+1. 사이트 등록 → 소유확인 (메타태그 방식 → 환경변수 `NAVER_VERIFY` 에 값 입력 후 재배포)
+2. 요청 → 사이트맵 제출 → `sitemap.xml`
+3. 요청 → **RSS 제출** → `rss.xml` ← 네이버는 사이트맵과 RSS 를 **둘 다** 넣었을 때 빠릅니다
+4. 검증 → robots.txt / 웹페이지 최적화 로 경고 확인
+
+**2. 구글 서치콘솔** (search.google.com/search-console)
+1. 속성 추가 → 소유확인 (`GOOGLE_VERIFY`)
+2. Sitemaps → `sitemap.xml` 제출
+3. URL 검사 → 주요 페이지 몇 개만 "색인 생성 요청" (할당량이 적으니 홈·광역지역·주제 정도만)
+
+> 구글은 **IndexNow 를 지원하지 않습니다.** 사이트맵 ping 엔드포인트도 2023년에 폐지돼
+> 구글 쪽은 사이트맵 제출 + 내부링크가 전부입니다. 그래서 6-A 의 내부링크 밀도가 중요합니다.
+
+**3. IndexNow — 네이버·빙·얀덱스 즉시 통보**
+
+네이버 서치어드바이저는 2023년 7월부터 IndexNow 를 지원합니다. `api.indexnow.org` 로 한 번
+보내면 참여 검색엔진 전체로 전달됩니다.
+
+```bash
+npm run indexnow -- --dry     # 전송 없이 내용 확인
+npm run indexnow              # 2,447건 전체 제출
+npm run indexnow -- --only=/topic/,/seoul/   # 일부만
+```
+
+스크립트가 먼저 `/<키>.txt` 가 실제로 서비스되는지 확인합니다. 이게 404 면 제출이 전부
+무시되므로, **사이트를 배포한 뒤에** 실행하세요. 콘텐츠를 고친 뒤에도 같은 명령으로
+변경분만(`--only`) 보내면 됩니다.
+
+키는 `src/data/site.js` 의 `indexNowKey` 이고 환경변수 `INDEXNOW_KEY` 로 덮어쓸 수 있습니다.
+비밀값이 아니라 공개 호스팅되어야 검증되는 토큰입니다.
+
+**4. 다음 카카오** (webmaster.daum.net) — 사이트 등록 후 `sitemap.xml` 제출
+
+### lastmod 를 함부로 올리지 마세요
+
+`sitemap` 의 `lastmod` 와 RSS 의 `pubDate` 는 `src/data/site.js` 의 `updated` 값을 씁니다.
+**콘텐츠를 실제로 고친 날에만** 바꾸세요. 배포할 때마다 오늘 날짜로 찍으면 검색엔진이
+신호를 신뢰하지 않게 됩니다.
 
 ---
 
@@ -224,13 +349,16 @@ src/
   templates/
     layout.js             헤더·푸터·고정 전화바
     parts.js              공통 컴포넌트
+    links.js              내부링크 허브 (유형·노선·인접 기준 묶기)
     pages.js              홈·지역·행정구·행정동·로드샵
+    topics.js             주제 허브 13곳
     static.js             안내·정책·검색·404
   assets/                 styles.css · app.js
 scripts/
   serve.mjs               로컬 미리보기
-  audit.mjs               전수 감사
+  audit.mjs               전수 감사 (본문·키워드·중복·링크·스키마·사이트맵)
   josa-check.mjs          조사 처리 린트
+  indexnow.mjs            네이버·빙·얀덱스 URL 통보
 ```
 
 ---

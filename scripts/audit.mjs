@@ -45,6 +45,8 @@ const E = m => err.push(m), W = m => warn.push(m);
 const kindOf = p => {
   if (p === '/') return 'home';
   if (p === '/404.html') return '404';
+  if (p === '/topic/') return 'topic-index';
+  if (p.startsWith('/topic/')) return 'topic';
   if (/^\/(seoul|gyeonggi|incheon)\/$/.test(p)) return 'region';
   const seg = p.split('/').filter(Boolean);
   if (/^(seoul|gyeonggi|incheon)$/.test(seg[0])) {
@@ -59,6 +61,9 @@ const titles = new Map(), descs = new Map(), canons = new Map();
 const known = new Set(docs.map(d => d.path));
 const areaTexts = [];
 const shopTexts = [];
+const schemaStat = new Map();
+const linkOut = new Map();
+let minOut = Infinity;
 let minChars = Infinity, shopOk = 0, telOk = 0;
 
 for (const d of docs) {
@@ -89,17 +94,38 @@ for (const d of docs) {
   /* 사진 미사용(텍스트 SVG 전용) */
   if (/<img[\s>]/.test(d.html)) E(`${d.path} <img> 사용 — 텍스트 SVG 전용 규칙 위반`);
 
-  /* 6) JSON-LD */
+  /* 6) JSON-LD — 페이지 종류별 필수 타입 검증 */
   const lds = [...d.html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
   if (!lds.length) E(`${d.path} JSON-LD 없음`);
+  const NEED = {
+    home:       ['Organization', 'WebSite', 'BreadcrumbList', 'CollectionPage', 'Place', 'Service', 'ReserveAction', 'ItemList', 'FAQPage'],
+    region:     ['Organization', 'WebSite', 'BreadcrumbList', 'CollectionPage', 'Place', 'Service', 'ReserveAction', 'ItemList', 'FAQPage'],
+    district:   ['Organization', 'WebSite', 'BreadcrumbList', 'CollectionPage', 'Place', 'Service', 'ReserveAction', 'ItemList', 'FAQPage'],
+    dong:       ['Organization', 'WebSite', 'BreadcrumbList', 'CollectionPage', 'Place', 'Service', 'ReserveAction', 'ItemList', 'FAQPage'],
+    shop:       ['Organization', 'WebSite', 'BreadcrumbList', 'ItemPage', 'Place', 'HealthAndBeautyBusiness', 'ReserveAction', 'FAQPage'],
+    topic:      ['Organization', 'WebSite', 'BreadcrumbList', 'CollectionPage', 'Service', 'ReserveAction', 'ItemList', 'FAQPage'],
+    'topic-index': ['Organization', 'WebSite', 'BreadcrumbList', 'CollectionPage', 'ItemList', 'ReserveAction'],
+    static:     ['Organization', 'WebSite', 'BreadcrumbList', 'ReserveAction'],
+    '404':      ['Organization', 'WebSite']
+  };
+  let types = [];
   for (const m of lds) {
     try {
       const g = JSON.parse(m[1].replace(/\\u003c/g, '<'));
-      const types = (g['@graph'] || [g]).flatMap(n => [].concat(n['@type']));
-      if (['district', 'dong', 'shop'].includes(k) && !types.includes('FAQPage')) E(`${d.path} FAQPage 누락`);
-      if (k === 'shop' && !types.includes('HealthAndBeautyBusiness')) E(`${d.path} LocalBusiness 누락`);
+      types.push(...(g['@graph'] || [g]).flatMap(n => [].concat(n['@type'])));
     } catch (e) { E(`${d.path} JSON-LD 파싱 실패: ${e.message}`); }
   }
+  for (const need of (NEED[k] || [])) {
+    if (!types.includes(need)) E(`${d.path} 스키마 ${need} 누락 (있는 것: ${[...new Set(types)].join(',')})`);
+  }
+  schemaStat.set(k, Math.max(schemaStat.get(k) || 0, new Set(types).size));
+
+  /* 6-b) 내부링크 밀도 — 고립 페이지 방지 */
+  const outLinks = new Set([...d.html.matchAll(/href="(\/[^"#?]*)"/g)].map(m => m[1])
+    .filter(u => !/\.(css|js|json|svg|xml|txt)$/.test(u) && u !== d.path));
+  linkOut.set(d.path, outLinks);
+  if (k !== '404' && outLinks.size < 20) E(`${d.path} 내부링크 ${outLinks.size}개 — 20개 미만`);
+  minOut = Math.min(minOut, k === '404' ? minOut : outLinks.size);
 
   /* 1) 본문 1,500자 */
   if (k === 'district' || k === 'dong') {
@@ -163,6 +189,33 @@ for (const w of [worst, worstShop]) {
   else if (w.v > 0.42) W(`${w.label} 페이지 최대 유사도 ${(w.v * 100).toFixed(1)}%: ${w.a} ↔ ${w.b}`);
 }
 
+/* 8) 고립 페이지(인바운드 0) 검사 */
+const inbound = new Map(docs.map(d => [d.path, 0]));
+for (const [, outs] of linkOut) for (const u of outs) if (inbound.has(u)) inbound.set(u, inbound.get(u) + 1);
+const orphans = [...inbound.entries()].filter(([p, n]) => n === 0 && p !== '/' && p !== '/404.html');
+for (const [p] of orphans.slice(0, 10)) E(`고립 페이지(인바운드 링크 0): ${p}`);
+if (orphans.length > 10) E(`고립 페이지 외 ${orphans.length - 10}건 더`);
+const inboundVals = [...inbound.values()];
+const minIn = Math.min(...inboundVals.filter((_, i) => [...inbound.keys()][i] !== '/404.html'));
+
+/* 9) sitemap 커버리지 */
+import { readFileSync, existsSync } from 'node:fs';
+let smCount = 0, smMissing = 0;
+if (existsSync(`${OUT}/sitemap.xml`)) {
+  const idx = readFileSync(`${OUT}/sitemap.xml`, 'utf8');
+  const files = [...idx.matchAll(/<loc>[^<]*\/([^/<]+\.xml)<\/loc>/g)].map(m => m[1]);
+  const inSitemap = new Set();
+  for (const f of files) {
+    const x = readFileSync(`${OUT}/${f}`, 'utf8');
+    for (const m of x.matchAll(/<loc>([^<]+)<\/loc>/g)) inSitemap.add(new URL(m[1]).pathname);
+  }
+  smCount = inSitemap.size;
+  for (const d of docs) {
+    if (d.path.endsWith('.html')) continue;
+    if (!inSitemap.has(d.path)) { smMissing++; if (smMissing <= 5) E(`sitemap 누락: ${d.path}`); }
+  }
+} else E('sitemap.xml 없음');
+
 /* ── 리포트 ───────────────────────────────────────────── */
 const avg = docs.reduce((a, d) => a + d.size, 0) / docs.length / 1024;
 console.log(`
@@ -176,6 +229,9 @@ console.log(`
   지역 본문 최소    ${minChars === Infinity ? '-' : minChars + '자'}
   지역 유사도       최대 ${(worst.v * 100).toFixed(1)}% / 평균 ${(worst.avg * 100).toFixed(1)}%
   로드샵 유사도     최대 ${(worstShop.v * 100).toFixed(1)}% / 평균 ${(worstShop.avg * 100).toFixed(1)}%
+  내부링크          최소 ${minOut}개 / 모든 페이지 인바운드 최소 ${minIn}개
+  스키마 타입 수    ${[...schemaStat.entries()].map(([k, v]) => `${k} ${v}`).join(' · ')}
+  sitemap 수록      ${smCount}건 (누락 ${smMissing})
   평균 페이지 용량  ${avg.toFixed(0)} KB
 ────────────────────────────────────────
   오류 ${err.length}건 / 경고 ${warn.length}건

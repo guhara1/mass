@@ -14,6 +14,8 @@ import {
   staticPages, buildAreasIndex, buildCourseGuide, buildHowTo,
   buildVisitGuide, buildFaqPage, buildPolicy, buildSearch, build404
 } from './src/templates/static.js';
+import { topicPages, buildTopic, buildTopicIndex } from './src/templates/topics.js';
+import { TOPICS, topicPath } from './src/data/topics.js';
 import { abs, esc } from './src/lib/seo.js';
 
 const OUT = 'dist';
@@ -27,8 +29,9 @@ ALL_DONGS.forEach(buildDong);
 ALL_SHOPS.forEach(buildShop);
 buildAreasIndex(); buildCourseGuide(); buildHowTo();
 buildVisitGuide(); buildFaqPage(); buildPolicy(); buildSearch(); build404();
+buildTopicIndex(); TOPICS.forEach(buildTopic);
 
-const ALL = [...pages(), ...staticPages()];
+const ALL = [...pages(), ...staticPages(), ...topicPages()];
 
 /* ── 중복 경로 점검 ────────────────────────────────────── */
 const seen = new Map();
@@ -54,63 +57,133 @@ for (const p of ALL) {
   await write(rel, p.html);
 }
 
-/* ── sitemap.xml ───────────────────────────────────────── */
+/* ── sitemap (색인 파일 + 섹션별 분할) ────────────────────
+ *  · 한 파일에 몰아넣지 않고 섹션별로 나누면 검색엔진 도구에서
+ *    어느 묶음이 색인되고 어느 묶음이 막혔는지 바로 보입니다.
+ *  · lastmod 는 SITE.updated 기준 — 콘텐츠를 실제로 고친 날에만 바꾸세요.
+ *    매 배포마다 오늘 날짜로 찍으면 신뢰도가 떨어집니다. */
 const prio = path => {
   if (path === '/') return '1.0';
   if (/^\/(seoul|gyeonggi|incheon)\/$/.test(path)) return '0.9';
+  if (path === '/topic/' || path === '/areas/') return '0.9';
+  if (path.startsWith('/topic/')) return '0.8';
+  if (path.startsWith('/guide/')) return '0.7';
   const depth = path.split('/').filter(Boolean).length;
   if (depth === 2) return '0.8';          // 행정구
   if (depth === 3) return '0.75';         // 행정동
   if (depth === 4) return '0.6';          // 로드샵
   return '0.5';
 };
-const urls = ALL.filter(p => !p.path.endsWith('.html')).map(p =>
-  `  <url><loc>${abs(p.path)}</loc><lastmod>${SITE.updated}</lastmod><changefreq>weekly</changefreq><priority>${prio(p.path)}</priority></url>`
-).join('\n');
-await write('/sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
+const freq = path => {
+  if (path === '/' || /^\/(seoul|gyeonggi|incheon)\/$/.test(path)) return 'daily';
+  const depth = path.split('/').filter(Boolean).length;
+  return depth >= 4 ? 'monthly' : 'weekly';
+};
+
+const indexable = ALL.filter(p => !p.path.endsWith('.html'));
+const urlTag = p =>
+  `  <url><loc>${abs(p.path)}</loc><lastmod>${SITE.updated}</lastmod><changefreq>${freq(p.path)}</changefreq><priority>${prio(p.path)}</priority></url>`;
+
+const SECTIONS = [];
+const addSection = (name, list) => {
+  if (!list.length) return;
+  SECTIONS.push({ name, count: list.length });
+  return write(`/${name}`, `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls}
+${list.map(urlTag).join('\n')}
 </urlset>\n`);
+};
+
+const isTopic = p => p.path === '/topic/' || p.path.startsWith('/topic/');
+const isGuide = p => p.path.startsWith('/guide/') || ['/areas/', '/policy/', '/search/'].includes(p.path);
+const depthOf = p => p.path.split('/').filter(Boolean).length;
+const regionOf = p => p.path.split('/').filter(Boolean)[0];
+
+await addSection('sitemap-core.xml', indexable.filter(p => p.path === '/' || /^\/(seoul|gyeonggi|incheon)\/$/.test(p.path) || isTopic(p) || isGuide(p)));
+await addSection('sitemap-districts.xml', indexable.filter(p => depthOf(p) === 2 && ['seoul', 'gyeonggi', 'incheon'].includes(regionOf(p))));
+for (const r of ['seoul', 'gyeonggi', 'incheon']) {
+  await addSection(`sitemap-dong-${r}.xml`, indexable.filter(p => depthOf(p) === 3 && regionOf(p) === r));
+}
+const shopPages = indexable.filter(p => depthOf(p) === 4);
+const CHUNK = 900;
+for (let i = 0; i < shopPages.length; i += CHUNK) {
+  await addSection(`sitemap-shop-${Math.floor(i / CHUNK) + 1}.xml`, shopPages.slice(i, i + CHUNK));
+}
+
+await write('/sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${SECTIONS.map(x => `  <sitemap><loc>${abs('/' + x.name)}</loc><lastmod>${SITE.updated}</lastmod></sitemap>`).join('\n')}
+</sitemapindex>\n`);
 
 /* ── robots.txt ────────────────────────────────────────── */
-await write('/robots.txt', `User-agent: *
-Allow: /
-Disallow: /search/
+await write('/robots.txt', `# ${SITE.brand}
+# 검색로봇 전체 허용 — Crawl-delay 는 두지 않습니다.
+# (네이버 Yeti 에 Crawl-delay 를 주면 수집 속도가 오히려 느려집니다)
 
-# 검색엔진별 크롤러 (네이버 Yeti 포함)
+User-agent: *
+Allow: /
+
 User-agent: Yeti
 Allow: /
-Crawl-delay: 1
+
+User-agent: NaverBot
+Allow: /
 
 User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
 Allow: /
 
 User-agent: Daum
 Allow: /
 
+User-agent: Daumoa
+Allow: /
+
+User-agent: bingbot
+Allow: /
+
 Sitemap: ${abs('/sitemap.xml')}
+${SECTIONS.map(x => `Sitemap: ${abs('/' + x.name)}`).join('\n')}
 `);
 
-/* ── rss.xml (네이버 서치어드바이저 피드 제출용) ────────── */
-const feedItems = ALL_DONGS.slice(0, 50).map(g => {
-  const u = abs(dongPath(g));
-  return `    <item>
-      <title>${esc(`${g.district.short || g.district.name} ${g.name} 마사지 — ${g.station} 생활권 로드샵 안내`)}</title>
-      <link>${u}</link>
-      <guid isPermaLink="true">${u}</guid>
-      <description>${esc(`${g.trait}. 기준 랜드마크 ${g.mark}, 가까운 기준점 ${g.station}. 코스·요금·운영시간과 출장 마사지·홈타이 안내.`)}</description>
+/* ── RSS (네이버 서치어드바이저 피드 제출용) ──────────────
+ *  네이버는 사이트맵과 RSS 를 함께 제출했을 때 수집이 빠릅니다.
+ *  주제 허브 + 광역/행정구 + 행정동을 섞어 사이트 구조가 드러나게 구성합니다. */
+const rssItem = (title, loc, description) => `    <item>
+      <title>${esc(title)}</title>
+      <link>${loc}</link>
+      <guid isPermaLink="true">${loc}</guid>
+      <description>${esc(description)}</description>
       <pubDate>${new Date(SITE.updated).toUTCString()}</pubDate>
     </item>`;
-}).join('\n');
+
+const feed = [
+  ...TOPICS.map(t => rssItem(
+    `${t.name} 마사지 — ${t.tagline.split(' — ')[0]}`, abs(topicPath(t)),
+    `${t.lead} 60분 120,000원 · 90분 150,000원 · 120분 180,000원, 출장 마사지·홈타이 접수 ${SITE.tel}.`)),
+  ...ALL_DISTRICTS.map(dd => rssItem(
+    `${dd.region.name} ${dd.name} 마사지 — 행정동 ${dd.dongs.length}곳 로드샵 안내`, abs(districtPath(dd)),
+    `${dd.zone} ${dd.hubs.join(' · ')} 기준으로 코스·요금·운영시간과 출장 마사지·홈타이를 정리했습니다.`)),
+  ...ALL_DONGS.slice(0, 120).map(g => rssItem(
+    `${g.district.short || g.district.name} ${g.name} 마사지 — ${g.station} 생활권`, abs(dongPath(g)),
+    `${g.trait} 기준 랜드마크 ${g.mark}. 코스·요금·운영시간과 출장 마사지·홈타이 안내.`))
+];
+
 await write('/rss.xml', `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"><channel>
-    <title>${esc(SITE.brand)} — 지역 업데이트</title>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
+    <title>${esc(SITE.brand)} — 지역·주제 업데이트</title>
     <link>${abs('/')}</link>
-    <description>${esc(SITE.tagline)} · 행정구·행정동 단위 마사지 로드샵 정보</description>
+    <atom:link href="${abs('/rss.xml')}" rel="self" type="application/rss+xml"/>
+    <description>${esc(SITE.tagline)} · 행정구 ${STATS.districts}곳 · 행정동 ${STATS.dongs}곳 마사지 로드샵 정보</description>
     <language>ko</language>
     <lastBuildDate>${new Date(SITE.updated).toUTCString()}</lastBuildDate>
-${feedItems}
+${feed.join('\n')}
 </channel></rss>\n`);
+
+/* ── IndexNow 키 파일 ──────────────────────────────────── */
+await write(`/${SITE.indexNowKey}.txt`, SITE.indexNowKey + '\n');
 
 /* ── search-index.json ─────────────────────────────────── */
 const idx = [
@@ -148,10 +221,13 @@ console.log(`
   행정구·시        ${STATS.districts}
   행정동           ${STATS.dongs}
   로드샵           ${ALL_SHOPS.length}
+  주제 허브        ${topicPages().length}
   안내/기타        ${staticPages().length}
   ────────────────────────────
   총 HTML          ${ALL.length} 페이지 (${(bytes / 1048576).toFixed(1)} MB)
-  sitemap URL      ${ALL.filter(p => !p.path.endsWith('.html')).length}
+  sitemap          ${indexable.length} URL / ${SECTIONS.length}개 파일
+  RSS              ${feed.length} 항목
+  IndexNow 키      /${SITE.indexNowKey}.txt
   출력             ${OUT}/
   canonical 기준   ${SITE.origin}
 `);

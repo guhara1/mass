@@ -6,8 +6,15 @@ import { rng, variantPicker } from '../lib/rng.js';
 import { jo } from '../lib/kor.js';
 import {
   esc, abs, clampDesc, orgNode, siteNode, breadcrumbNode, webPageNode,
-  faqNode, itemListNode, shopNode
+  faqNode, itemListNode, shopNode, placeNode, serviceNode, reserveAction, KR_PLACE
 } from '../lib/seo.js';
+import { TOPICS, topicPath } from '../data/topics.js';
+import {
+  linkHub, topicGroup, situationGroup, guideGroup, regionGroup,
+  similarDongs, lineDongs, popularDongs, nearDistricts,
+  dongLink, districtLink, TYPE_LABEL
+} from './links.js';
+import { COURSE_PRICE } from '../data/shops.js';
 import { layout, callBar, fab, ICON } from './layout.js';
 import {
   breadcrumb, hero, heroH1, answerBox, areaTile, shopCard, proseBlock,
@@ -19,6 +26,24 @@ const add = (path, html) => PAGES.push({ path, html });
 export const pages = () => PAGES;
 
 const shopsOfDistrict = dd => shopsByDistrict.get(`${dd.region.slug}/${dd.slug}`) || [];
+
+/* 행정구역 계층 Place — 동 → 구 → 시/도 → 대한민국 */
+const regionPlaceId = r => abs(`/${r.slug}/`) + '#place';
+const districtPlaceId = dd => abs(districtPath(dd)) + '#place';
+const dongPlaceId = g => abs(dongPath(g)) + '#place';
+const placeChain = ({ region, district, dong }) => {
+  const nodes = [placeNode({ id: regionPlaceId(region), name: region.full, alt: region.name, geo: region.geo, parent: KR_PLACE })];
+  if (district) nodes.push(placeNode({ id: districtPlaceId(district), name: district.name, geo: district.geo, parent: { '@id': regionPlaceId(region) } }));
+  if (dong) nodes.push(placeNode({ id: dongPlaceId(dong), name: dong.name, alt: `${district.name} ${dong.name}`, geo: district.geo, parent: { '@id': districtPlaceId(district) } }));
+  return nodes;
+};
+/* 해당 지역의 출장 마사지·홈타이 서비스 노드 */
+const visitServices = (path, areaName, areaId) => [
+  serviceNode({ id: abs(path) + '#svc-visit', name: `${areaName} 출장 마사지`, type: '출장 마사지', areaName, areaId, courses: COURSE_PRICE,
+    desc: `${areaName} 전역으로 관리사가 방문하는 출장 마사지입니다. 주소지와 희망 시간을 알려주시면 도착 예정 시각을 안내받습니다.` }),
+  serviceNode({ id: abs(path) + '#svc-home', name: `${areaName} 홈타이`, type: '홈타이', areaName, areaId, courses: COURSE_PRICE,
+    desc: `${areaName} 가정 방문 홈타이입니다. 매트를 깔 바닥 공간과 수건만 준비되면 진행되며 매트와 오일은 관리사가 지참합니다.` })
+];
 const shopsOfDong = g => shopsByDong.get(`${g.region.slug}/${g.district.slug}/${g.slug}`) || [];
 
 /* 샘플 데이터 고지 — 전 페이지 공통 문구 (신뢰도 신호) */
@@ -29,6 +54,15 @@ const SAMPLE_NOTE = note(
 /* ────────────────────────────────────────────────────────
  *  1) 홈
  * ──────────────────────────────────────────────────────── */
+const HOME_FAQ = [
+  { q: '어느 지역까지 가능한가요?', a: `서울 ${REGIONS[0].districts.length}개 자치구, 경기 ${REGIONS[1].districts.length}개 행정구·시, 인천 ${REGIONS[2].districts.length}개 구·군 전역입니다. 행정동 ${STATS.dongs}곳 단위로 정리돼 있어 원하는 동네를 바로 찾을 수 있습니다.` },
+  { q: '요금은 지역마다 다른가요?', a: `아닙니다. 60분 ${won(COURSE_PRICE[0].price)}원, 90분 ${won(COURSE_PRICE[1].price)}원, 120분 ${won(COURSE_PRICE[2].price)}원으로 전 지역·전 업소가 동일합니다. 가격 비교 없이 위치와 업종, 운영 시간만 보고 고르시면 됩니다.` },
+  { q: '예약은 어떻게 하나요?', a: `${SITE.tel} 로 전화해 지역, 희망 시간, 코스 길이를 말하면 끝납니다. 가입이나 앱 설치는 필요하지 않고 통화는 보통 2~3분이면 끝납니다.` },
+  { q: '출장 마사지와 홈타이도 같은 번호인가요?', a: '네. 매장 방문과 출장·홈타이 모두 같은 번호에서 접수합니다. 출장이라면 주소지를 함께 알려주시면 이동 시간을 포함한 도착 예정 시각을 바로 안내받습니다.' },
+  { q: '어떤 업종을 고를 수 있나요?', a: '스웨디시, 타이마사지, 아로마테라피, 딥티슈, 건식마사지, 로미로미, 스포츠마사지, 발마사지, 바디&두피 9종입니다. 주제별 찾기에서 각 방식의 차이를 비교할 수 있습니다.' },
+  { q: '사이트에 올라온 업소는 실제 업체인가요?', a: `현재 노출되는 ${ALL_SHOPS.length}곳은 실입점 전 샘플 정보입니다. 조건 비교 방식을 보여주기 위한 예시이며 실제 입점 업소로 순차 교체됩니다.` }
+];
+
 export function buildHome() {
   const path = '/';
   const featured = rng('home:featured').sample(ALL_SHOPS, 6);
@@ -85,6 +119,30 @@ ${section({
       ['접수', `<a href="${PHONE_HREF}" data-loc="home-dl" style="font-weight:800;color:var(--terra)">${esc(SITE.tel)}</a> · ${esc(SITE.telSubLabel)}`]
     ])}
   </div>`
+  })}
+
+${section({
+    title: '주제로 좁혀 찾기', more: '/topic/', moreLabel: '주제 전체',
+    body: `<div class="grid grid--shop">${TOPICS.slice(0, 6).map(t => `<a class="card" href="${topicPath(t)}">
+      <div class="card__body" style="gap:8px">
+        <span class="chip ${t.group === '업종' ? 'chip--pine' : 'chip--gold'}">${esc(t.group)}</span>
+        <span class="card__t">${esc(t.name)}</span>
+        <p class="card__desc" style="-webkit-line-clamp:3">${esc(t.lead)}</p>
+        <div class="card__foot"><span class="muted">${esc(t.tagline.split(' — ')[0])}</span><span style="font-weight:800;color:var(--pine)">자세히 →</span></div>
+      </div></a>`).join('')}</div>`
+  })}
+
+${faqBlock(HOME_FAQ, '처음 이용할 때 많이 묻는 것')}
+
+${linkHub({
+    id: 'home-links', title: '바로 가기',
+    intro: '업종이나 상황이 정해져 있다면 주제에서, 동네가 정해져 있다면 지역에서 출발하세요.',
+    groups: [
+      topicGroup([], '업종별로 찾기'),
+      situationGroup(),
+      { title: '많이 찾는 행정동', note: '상업·업무 중심 생활권', links: popularDongs(9).map(dongLink) },
+      guideGroup()
+    ]
   })}`;
 
   add(path, layout({
@@ -95,8 +153,12 @@ ${section({
       geo: { region: 'KR-11', pos: [37.5665, 126.9780] }, placename: '서울특별시',
       graph: [orgNode(), siteNode(),
         breadcrumbNode([{ label: '홈', href: '/' }], path),
-        webPageNode({ path, title, desc, geo: [37.5665, 126.9780], placename: '서울·경기·인천' }),
-        itemListNode({ path, name: '지역 목록', items: REGIONS.map(r => ({ name: r.full, path: `/${r.slug}/` })) })]
+        webPageNode({ path, title, desc, geo: [37.5665, 126.9780], placename: '서울·경기·인천', type: 'CollectionPage', mainEntity: abs(path) + '#list' }),
+        ...REGIONS.map(r => placeNode({ id: regionPlaceId(r), name: r.full, alt: r.name, geo: r.geo, parent: KR_PLACE })),
+        ...visitServices(path, '서울·경기·인천', null),
+        reserveAction({ id: abs(path) + '#reserve', name: '마사지 전화 예약' }),
+        itemListNode({ path, name: '지역 목록', items: REGIONS.map(r => ({ name: r.full, path: `/${r.slug}/` })) }),
+        faqNode(HOME_FAQ, path)]
     },
     body
   }));
@@ -108,7 +170,19 @@ ${section({
 export function buildRegion(r) {
   const path = `/${r.slug}/`;
   const dongTotal = r.districts.reduce((a, d) => a + d.dongs.length, 0);
-  const shopTotal = r.districts.reduce((a, d) => a + shopsOfDistrict(d).length, 0);
+  const regionShops = r.districts.flatMap(d => shopsOfDistrict(d));
+  const shopTotal = regionShops.length;
+  const kindCount = new Map();
+  for (const s of regionShops) kindCount.set(s.kind, (kindCount.get(s.kind) || 0) + 1);
+  const regionKinds = [...kindCount.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  const topDist = r.districts.slice().sort((a, b) => shopsOfDistrict(b).length - shopsOfDistrict(a).length).slice(0, 3);
+  const regionFaq = [
+    { q: `${r.name} 어느 지역까지 가능한가요?`, a: `${r.full} ${r.unit} ${r.districts.length}곳과 행정동 ${dongTotal}곳 전역입니다. ${topDist.map(d => d.name).join(', ')} 등에서 선택지가 넓고, 나머지 지역도 같은 번호로 접수합니다.` },
+    { q: `${r.name} 마사지 요금은 얼마인가요?`, a: `60분 ${won(COURSE_PRICE[0].price)}원, 90분 ${won(COURSE_PRICE[1].price)}원, 120분 ${won(COURSE_PRICE[2].price)}원으로 ${r.name} 전역이 동일합니다. 지역이나 업종에 따른 가격 차이가 없습니다.` },
+    { q: `${r.name}에서는 어떤 업종을 고를 수 있나요?`, a: `${regionKinds.slice(0, 5).join(', ')} 등이 운영됩니다. 이완이 목적이면 오일 계열, 뭉친 부위를 풀고 싶으면 딥티슈 계열, 가동 범위를 넓히려면 타이 계열이 맞습니다.` },
+    { q: `${r.name}도 출장 마사지가 되나요?`, a: `됩니다. ${SITE.tel} 로 ${r.name} 안의 주소지와 희망 시간을 알려주시면 이동 시간을 포함한 도착 예정 시각을 바로 안내받습니다. 홈타이도 같은 번호입니다.` },
+    { q: `행정구와 행정동 중 어디서 골라야 하나요?`, a: `행정동까지 들어가는 쪽을 권합니다. 같은 구 안에서도 오피스권과 주거권의 운영 시간과 응대 성격이 달라서, 구 단위로만 고르면 성격이 다른 블록으로 가게 될 수 있습니다.` }
+  ];
   const title = `${r.name} 마사지 로드샵 — ${r.unit} ${r.districts.length}곳 지역별 안내 | ${SITE.brand}`;
   const desc = clampDesc(`${r.full} ${r.unit} ${r.districts.length}곳과 행정동 ${dongTotal}곳 전체의 마사지 로드샵 ${shopTotal}건을 정리했습니다. 코스·요금·운영시간 비교와 출장 마사지·홈타이 예약은 ${SITE.tel}.`);
   const crumbs = [{ label: '홈', href: '/' }, { label: r.full, href: path }];
@@ -136,6 +210,19 @@ ${section({
     title: `${r.name} 지역 로드샵 미리보기`,
     body: `<div class="grid grid--shop">${rng('region:' + r.slug).sample(r.districts.flatMap(d => shopsOfDistrict(d)), 6).map(s => shopCard(s)).join('')}</div>
   <div class="mt">${SAMPLE_NOTE}</div>`
+  })}
+
+${faqBlock(regionFaq, `${r.name} 마사지 자주 묻는 질문`)}
+
+${linkHub({
+    id: 'region-links', title: `${r.name}에서 이어서 보기`,
+    intro: `${r.name} 안에서 업종이나 상황으로 좁히거나, 많이 찾는 행정동으로 바로 들어갈 수 있습니다.`,
+    groups: [
+      topicGroup(regionKinds, `${r.name} 업종별`),
+      situationGroup(`${r.name} 상황별`),
+      { title: `${r.name} 많이 찾는 행정동`, note: '상업·업무 중심 생활권', links: popularDongs(10, r).map(dongLink) },
+      regionGroup(r)
+    ]
   })}`;
 
   add(path, layout({
@@ -145,8 +232,12 @@ ${section({
       keywords: `${r.name} 마사지, ${r.name} 출장 마사지, ${r.name} 홈타이, ${r.full} 로드샵`,
       geo: { region: r.geoRegion, pos: r.geo }, placename: r.full,
       graph: [orgNode(), siteNode(), breadcrumbNode(crumbs, path),
-        webPageNode({ path, title, desc, geo: r.geo, placename: r.full }),
-        itemListNode({ path, name: `${r.full} ${r.unit} 목록`, items: r.districts.map(d => ({ name: d.name, path: districtPath(d) })) })]
+        webPageNode({ path, title, desc, geo: r.geo, placename: r.full, type: 'CollectionPage', mainEntity: abs(path) + '#list' }),
+        ...placeChain({ region: r }),
+        ...visitServices(path, r.full, regionPlaceId(r)),
+        reserveAction({ id: abs(path) + '#reserve', name: `${r.full} 마사지 전화 예약` }),
+        itemListNode({ path, name: `${r.full} ${r.unit} 목록`, items: r.districts.map(d => ({ name: d.name, path: districtPath(d) })) }),
+        faqNode(regionFaq, path)]
     },
     body
   }));
@@ -173,6 +264,7 @@ export function buildDistrict(dd) {
   const v = variantPicker('ddesc:' + path);
   /* 행정구 페이지는 미리보기만 — 전체 목록은 행정동 페이지가 담당(페이지 용량·중복 관리) */
   const preview = rng('dpre:' + path).sample(shops, 9);
+  const nearList = nearDistricts(dd);
 
   const dongHead = dd.dongs.slice(0, 3).map(x => x.name.replace(/(동|읍|면)$/, '')).join('·');
   const title = `${dd.name} 마사지 — ${dongHead} 등 ${dd.dongs.length}개 동 로드샵 | ${SITE.brand}`;
@@ -218,7 +310,18 @@ ${section({
 
 ${section({ title: `${dd.name} 지역 가이드`, body: proseBlock(content) })}
 
-${faqBlock(content.faq, `${dd.name} 마사지 자주 묻는 질문`)}`;
+${faqBlock(content.faq, `${dd.name} 마사지 자주 묻는 질문`)}
+
+${linkHub({
+    id: 'district-links', title: `${dd.name}에서 이어서 보기`,
+    intro: `${dd.name} 안에서 업종으로 좁히거나, 생활권이 이어지는 인접 지역까지 넓혀 볼 수 있습니다.`,
+    groups: [
+      topicGroup(ctx.kinds, `${dd.name} 업종별`),
+      { title: `${dd.name} 행정동`, note: `전체 ${dd.dongs.length}곳`, links: dd.dongs.slice(0, 10).map(dongLink) },
+      { title: '인접 지역', note: '생활권이 이어지는 행정구', links: nearList.map(districtLink) },
+      situationGroup()
+    ]
+  })}`;
 
   add(path, layout({
     active: `/${r.slug}/`, bottom: fab(),
@@ -227,7 +330,10 @@ ${faqBlock(content.faq, `${dd.name} 마사지 자주 묻는 질문`)}`;
       keywords: `${dd.name} 마사지, ${dd.name} 출장 마사지, ${dd.name} 홈타이, ${dd.dongs.slice(0, 6).map(x => x.name + ' 마사지').join(', ')}`,
       geo: { region: r.geoRegion, pos: dd.geo }, placename: `${r.full} ${dd.name}`,
       graph: [orgNode(), siteNode(), breadcrumbNode(crumbs, path),
-        webPageNode({ path, title, desc, geo: dd.geo, placename: `${r.full} ${dd.name}` }),
+        webPageNode({ path, title, desc, geo: dd.geo, placename: `${r.full} ${dd.name}`, type: 'CollectionPage', mainEntity: abs(path) + '#list' }),
+        ...placeChain({ region: r, district: dd }),
+        ...visitServices(path, dd.name, districtPlaceId(dd)),
+        reserveAction({ id: abs(path) + '#reserve', name: `${dd.name} 마사지 전화 예약` }),
         itemListNode({ path, name: `${dd.name} 행정동`, items: dd.dongs.map(g => ({ name: g.name, path: dongPath(g) })) }),
         faqNode(content.faq, path)]
     },
@@ -251,6 +357,9 @@ export function buildDong(g) {
   const crumbs = [{ label: '홈', href: '/' }, { label: r.full, href: `/${r.slug}/` }, { label: dd.name, href: districtPath(dd) }, { label: g.name, href: path }];
 
   const siblings = dd.dongs.filter(x => x.slug !== g.slug);
+  const simList = similarDongs(g, 8);
+  const lineList = lineDongs(g, 8);
+  const nearList = nearDistricts(dd);
 
   const body = `<div class="wrap">${breadcrumb(crumbs)}</div>
 ${heroH1({
@@ -283,6 +392,19 @@ ${section({ title: `${g.name} 지역 가이드`, body: proseBlock(content) })}
 
 ${faqBlock(content.faq, `${g.name} 마사지 자주 묻는 질문`)}
 
+${linkHub({
+    id: 'dong-links', title: `${jo(g.name, '과')} 함께 보는 곳`,
+    intro: `${jo(g.name, '은')} ${TYPE_LABEL[g.type] || '생활'} 성격의 구역입니다. 성격이 비슷한 다른 지역이나 같은 노선 위의 지역도 조건이 맞을 수 있습니다.`,
+    groups: [
+      topicGroup(ctx.kinds, `${g.name} 업종별`),
+      { title: `비슷한 상권 — ${TYPE_LABEL[g.type] || '생활'}`, note: '다른 행정구의 같은 성격 지역', links: simList.map(dongLink) },
+      lineList.list.length
+        ? { title: `${lineList.line} 라인`, note: '같은 노선으로 이어지는 지역', links: lineList.list.map(dongLink) }
+        : { title: '인접 지역', links: nearList.map(districtLink) },
+      situationGroup()
+    ]
+  })}
+
 ${section({
     title: `${dd.name}의 다른 행정동`, more: districtPath(dd), moreLabel: `${dd.name} 전체`,
     body: `<div class="grid grid--area">${siblings.map(x => areaTile({ href: dongPath(x), title: x.name, seed: dd.slug + x.slug, sub: x.station })).join('')}</div>
@@ -299,7 +421,10 @@ ${section({
       keywords: `${g.name} 마사지, ${g.name} 출장 마사지, ${g.name} 홈타이, ${dd.name} ${g.name}, ${g.station} 마사지`,
       geo: { region: r.geoRegion, pos: dd.geo }, placename: `${r.full} ${dd.name} ${g.name}`,
       graph: [orgNode(), siteNode(), breadcrumbNode(crumbs, path),
-        webPageNode({ path, title, desc, geo: dd.geo, placename: `${r.full} ${dd.name} ${g.name}` }),
+        webPageNode({ path, title, desc, geo: dd.geo, placename: `${r.full} ${dd.name} ${g.name}`, type: 'CollectionPage', mainEntity: abs(path) + '#list' }),
+        ...placeChain({ region: r, district: dd, dong: g }),
+        ...visitServices(path, `${dd.short || dd.name} ${g.name}`, dongPlaceId(g)),
+        reserveAction({ id: abs(path) + '#reserve', name: `${g.name} 마사지 전화 예약` }),
         itemListNode({ path, name: `${g.name} 로드샵`, items: shops.map(s => ({ name: s.name, path: s.path })) }),
         faqNode(content.faq, path)]
     },
@@ -320,6 +445,9 @@ export function buildShop(s) {
     { label: dd.name, href: districtPath(dd) }, { label: g.name, href: dongPath(g) },
     { label: s.name, href: path }
   ];
+  const siblingLinks = dd.dongs.filter(x => x.slug !== g.slug).slice(0, 5).map(dongLink);
+  const ownTopic = TOPICS.find(t => t.kind === s.kind);
+  const shopTopics = [ownTopic, ...TOPICS.filter(t => t.group === '업종' && t !== ownTopic).slice(0, 7)].filter(Boolean);
   const near = (shopsOfDong(g).filter(x => x.id !== s.id).concat(
     shopsOfDistrict(dd).filter(x => x.dong.slug !== g.slug)
   )).slice(0, 3);
@@ -392,7 +520,23 @@ ${faqBlock(faq, `${s.name} 자주 묻는 질문`)}
 ${near.length ? section({
     title: `${g.name} · ${dd.name} 주변 로드샵`, more: dongPath(g), moreLabel: `${g.name} 전체`,
     body: `<div class="grid grid--shop">${near.map(x => shopCard(x)).join('')}</div>`
-  }) : ''}`;
+  }) : ''}
+
+${linkHub({
+    id: 'shop-links', title: '이어서 보기',
+    intro: `${s.areaLabel} 일대에서 조건을 바꿔 다시 찾아볼 수 있습니다.`,
+    groups: [
+      { title: '지역으로 보기', links: [
+        { label: `${g.name} 로드샵`, href: dongPath(g), sub: `${shopsOfDong(g).length}곳` },
+        { label: `${dd.name} 마사지`, href: districtPath(dd), sub: `행정동 ${dd.dongs.length}곳` },
+        { label: `${r.full} 전체`, href: `/${r.slug}/`, sub: `${r.unit} ${r.districts.length}곳` },
+        ...siblingLinks
+      ] },
+      { title: '업종으로 보기', links: shopTopics.map(t => ({ label: t.name, href: topicPath(t), sub: t.tagline.split(' — ')[0] })) },
+      situationGroup(),
+      guideGroup()
+    ]
+  })}`;
 
   add(path, layout({
     active: `/${r.slug}/`, bottom: callBar(s),
@@ -401,8 +545,11 @@ ${near.length ? section({
       keywords: `${s.name}, ${s.areaLabel} 마사지, ${s.kind}, 출장 마사지, 홈타이, ${g.station} 마사지`,
       geo: { region: r.geoRegion, pos: dd.geo }, placename: `${r.full} ${dd.name} ${g.name}`,
       graph: [orgNode(), siteNode(), breadcrumbNode(crumbs, path),
-        webPageNode({ path, title, desc, geo: dd.geo, placename: `${r.full} ${dd.name} ${g.name}` }),
-        shopNode(s), faqNode(faq, path)]
+        webPageNode({ path, title, desc, geo: dd.geo, placename: `${r.full} ${dd.name} ${g.name}`, type: 'ItemPage', mainEntity: abs(path) + '#business' }),
+        ...placeChain({ region: r, district: dd, dong: g }),
+        shopNode(s),
+        reserveAction({ id: abs(path) + '#reserve', name: `${s.name} 전화 예약` }),
+        faqNode(faq, path)]
     },
     body
   }));

@@ -2,7 +2,10 @@ import { SITE, PHONE_HREF } from '../data/site.js';
 import { REGIONS, ALL_DISTRICTS, districtPath, dongPath, STATS } from '../data/regions.js';
 import { ALL_SHOPS } from '../data/shops.js';
 import { jo } from '../lib/kor.js';
-import { esc, clampDesc, orgNode, siteNode, breadcrumbNode, webPageNode, faqNode, itemListNode } from '../lib/seo.js';
+import { esc, abs, clampDesc, orgNode, siteNode, breadcrumbNode, webPageNode, faqNode, itemListNode, serviceNode, reserveAction, placeNode, KR_PLACE } from '../lib/seo.js';
+import { COURSE_PRICE } from '../data/shops.js';
+import { TOPICS, topicPath } from '../data/topics.js';
+import { linkHub, topicGroup, situationGroup, guideGroup, regionGroup, popularDongs, dongLink } from './links.js';
 import { layout, fab, ICON } from './layout.js';
 import { breadcrumb, heroH1, answerBox, areaTile, section, faqBlock, note, dl, stats, won } from './parts.js';
 
@@ -24,13 +27,21 @@ function shell({ path, title, desc, h1, eyebrow, sub, lead, chips, body, faq, ke
       geo: { region: 'KR-11', pos: [37.5665, 126.9780] }, placename: '서울·경기·인천',
       graph: [orgNode(), siteNode(), breadcrumbNode(cr, path),
         webPageNode({ path, title, desc }),
+        serviceNode({ id: abs(path) + '#svc', name: `${h1} — 출장 마사지·홈타이`, desc,
+          type: '마사지', areaName: '서울특별시·경기도·인천광역시', courses: COURSE_PRICE }),
+        reserveAction({ id: abs(path) + '#reserve', name: '마사지 전화 예약' }),
         ...(faq ? [faqNode(faq, path)] : [])]
     },
     body: `<div class="wrap">${breadcrumb(cr)}</div>
 ${heroH1({ seed: path, eyebrow, title: h1, sub, lead, chips: chips || [],
       extra: `<div class="hero__cta"><a class="btn btn--call" href="${PHONE_HREF}" data-loc="guide-hero">${ICON.phone}출장마사지 ${esc(SITE.tel)}</a></div>` })}
 ${body}
-${faq ? faqBlock(faq) : ''}`
+${faq ? faqBlock(faq) : ''}
+${linkHub({
+      id: 'guide-links', title: '이어서 보기',
+      groups: [topicGroup([], '업종별로 찾기'), situationGroup(),
+        { title: '많이 찾는 행정동', links: popularDongs(8).map(dongLink) }, regionGroup()]
+    })}`
   }));
 }
 
@@ -55,7 +66,9 @@ export function buildAreasIndex() {
       geo: { region: 'KR-11', pos: [37.5665, 126.9780] }, placename: '서울·경기·인천',
       graph: [orgNode(), siteNode(),
         breadcrumbNode([{ label: '홈', href: '/' }, { label: '지역 전체', href: path }], path),
-        webPageNode({ path, title, desc }),
+        webPageNode({ path, title, desc, type: 'CollectionPage', mainEntity: abs(path) + '#list' }),
+        ...REGIONS.map(r => placeNode({ id: abs(`/${r.slug}/`) + '#place', name: r.full, alt: r.name, geo: r.geo, parent: KR_PLACE })),
+        reserveAction({ id: abs(path) + '#reserve', name: '마사지 전화 예약' }),
         itemListNode({ path, name: '행정구 전체', items: ALL_DISTRICTS.map(dd => ({ name: `${dd.region.name} ${dd.name}`, path: districtPath(dd) })) })]
     },
     body: `<div class="wrap">${breadcrumb([{ label: '홈', href: '/' }, { label: '지역 전체', href: path }])}</div>
@@ -66,7 +79,13 @@ ${heroH1({
       chips: [{ t: `행정구 ${STATS.districts}`, cls: 'chip--pine' }, { t: `행정동 ${STATS.dongs}`, cls: 'chip--gold' }, { t: `로드샵 ${ALL_SHOPS.length}`, cls: 'chip--terra' }],
       extra: `<div class="mt">${stats([{ v: String(REGIONS[0].districts.length), l: '서울 자치구' }, { v: String(REGIONS[1].districts.length), l: '경기 행정구·시' }, { v: String(REGIONS[2].districts.length), l: '인천 구·군' }])}</div>`
     })}
-${body}`
+${body}
+${linkHub({
+      id: 'areas-links', title: '주제로도 찾을 수 있습니다',
+      intro: '동네가 정해지지 않았다면 업종이나 상황부터 좁혀 보세요.',
+      groups: [topicGroup([], '업종별로 찾기'), situationGroup(),
+        { title: '많이 찾는 행정동', links: popularDongs(10).map(dongLink) }, guideGroup()]
+    })}`
   }));
 }
 
@@ -290,7 +309,9 @@ export function buildSearch() {
     active: path, bottom: fab(),
     seo: {
       path, title, desc, keywords: '마사지 지역 검색, 행정동 검색',
-      graph: [orgNode(), siteNode(), breadcrumbNode(crumbs, path), webPageNode({ path, title, desc })]
+      graph: [orgNode(), siteNode(), breadcrumbNode(crumbs, path),
+        webPageNode({ path, title, desc, type: 'SearchResultsPage' }),
+        reserveAction({ id: abs(path) + '#reserve', name: '마사지 전화 예약' })]
     },
     body: `<div class="wrap">${breadcrumb(crumbs)}</div>
 ${heroH1({
@@ -322,7 +343,12 @@ ${section({ body: `<div id="result" class="grid grid--area" aria-live="polite"><
   var t;input.addEventListener('input',function(){clearTimeout(t);t=setTimeout(function(){render(input.value.trim())},140)});
   var p=new URLSearchParams(location.search).get('q'); if(p){input.value=p;render(p);}
 })();
-</script>`
+</script>
+${linkHub({
+      id: 'search-links', title: '검색 대신 눌러서 찾기',
+      groups: [regionGroup(), topicGroup([], '업종별로 찾기'),
+        { title: '많이 찾는 행정동', links: popularDongs(8).map(dongLink) }, guideGroup()]
+    })}`
   }));
 }
 

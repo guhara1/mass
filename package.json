@@ -8,7 +8,11 @@
     "build": "node build.mjs",
     "dev": "node build.mjs && node scripts/serve.mjs",
     "serve": "node scripts/serve.mjs",
-    "audit": "node scripts/audit.mjs"
+    "audit": "node scripts/audit.mjs",
+    "indexnow": "node scripts/indexnow.mjs",
+    "check": "node scripts/josa-check.mjs && node build.mjs && node scripts/audit.mjs"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }

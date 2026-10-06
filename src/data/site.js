@@ -35,7 +35,11 @@ export const SITE = {
     policy: '현장 확인 · 전화 응답 확인 후 등록'
   },
 
-  updated: '2026-10-06',
+  updated: '2026-10-06',   // ← 콘텐츠를 실제로 고친 날로 갱신하세요 (sitemap lastmod / RSS pubDate 기준)
+
+  /* IndexNow 키 — 네이버·빙·얀덱스에 변경 URL 을 즉시 통보할 때 쓰는 공개 토큰입니다.
+     비밀값이 아니며 /<키>.txt 로 공개 호스팅되어야 검증됩니다. */
+  indexNowKey: process.env.INDEXNOW_KEY || 'a7f3c91e5b2d4068af15c3e97d402b6c',
 
   // ---- 공통 키워드 (로드샵 디스크립션 필수 키워드) ------------------------
   coreKeywords: ['출장 마사지', '홈타이'],

@@ -43,7 +43,13 @@ export const orgNode = () => ({
     areaServed: 'KR',
     availableLanguage: ['ko'],
     contactOption: 'TollFree'
-  }]
+  }],
+  knowsAbout: ['마사지', '출장 마사지', '홈타이', '스웨디시', '타이마사지', '아로마테라피', '딥티슈', '건식마사지', '로미로미', '스포츠마사지', '발마사지'],
+  makesOffer: [
+    { '@type': 'Offer', name: '60분 코스', price: 120000, priceCurrency: 'KRW' },
+    { '@type': 'Offer', name: '90분 코스', price: 150000, priceCurrency: 'KRW' },
+    { '@type': 'Offer', name: '120분 코스', price: 180000, priceCurrency: 'KRW' }
+  ]
 });
 
 export const siteNode = () => ({
@@ -69,8 +75,8 @@ export const breadcrumbNode = (crumbs, path) => ({
   }))
 });
 
-export const webPageNode = ({ path, title, desc, crumbs, geo, placename }) => ({
-  '@type': 'WebPage',
+export const webPageNode = ({ path, title, desc, crumbs, geo, placename, type = 'WebPage', mainEntity = null }) => ({
+  '@type': type,
   '@id': abs(path) + '#webpage',
   url: abs(path),
   name: title,
@@ -86,12 +92,65 @@ export const webPageNode = ({ path, title, desc, crumbs, geo, placename }) => ({
       geo: { '@type': 'GeoCoordinates', latitude: geo[0], longitude: geo[1] }
     }
   } : {}),
+  ...(mainEntity ? { mainEntity: { '@id': mainEntity } } : {}),
   /* AEO: 음성/발췌 대상 지정 */
   speakable: {
     '@type': 'SpeakableSpecification',
     cssSelector: ['.answer p', 'h1', '.faq summary', '.faq .a']
   },
   ...(crumbs ? {} : {})
+});
+
+/* ── 행정구역 계층 Place (GEO) ─────────────────────────────
+ * 동 → 구 → 시/도 → 대한민국 으로 containedInPlace 를 이어 붙인다. */
+export const placeNode = ({ id, name, geo, parent, alt }) => ({
+  '@type': ['Place', 'AdministrativeArea'],
+  '@id': id,
+  name,
+  ...(alt ? { alternateName: alt } : {}),
+  ...(geo ? { geo: { '@type': 'GeoCoordinates', latitude: geo[0], longitude: geo[1] } } : {}),
+  ...(parent ? { containedInPlace: parent } : {}),
+  address: { '@type': 'PostalAddress', addressCountry: 'KR', addressLocality: name }
+});
+
+export const KR_PLACE = { '@type': 'Country', '@id': abs('/#kr'), name: '대한민국' };
+
+/* ── 제공 서비스 (출장 마사지 / 홈타이 / 업종) ────────────── */
+export const serviceNode = ({ id, name, desc, areaName, areaId, type = '마사지', courses }) => ({
+  '@type': 'Service',
+  '@id': id,
+  name,
+  description: desc,
+  serviceType: type,
+  category: '마사지',
+  provider: { '@id': abs('/#org') },
+  areaServed: areaId ? { '@id': areaId } : { '@type': 'AdministrativeArea', name: areaName },
+  availableChannel: {
+    '@type': 'ServiceChannel',
+    servicePhone: { '@type': 'ContactPoint', telephone: `+82-${SITE.telRaw.replace(/^0/, '')}`, contactType: 'reservations' },
+    availableLanguage: 'ko'
+  },
+  ...(courses ? {
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog', name: `${name} 코스`,
+      itemListElement: courses.map(c => ({
+        '@type': 'Offer',
+        name: `${c.min}분`,
+        price: c.price, priceCurrency: 'KRW',
+        availability: 'https://schema.org/InStock',
+        itemOffered: { '@type': 'Service', name: `${name} ${c.min}분`, serviceType: type }
+      }))
+    }
+  } : {})
+});
+
+/* ── 전화 예약 액션 (AEO) ─────────────────────────────────── */
+export const reserveAction = ({ id, name }) => ({
+  '@type': 'ReserveAction',
+  '@id': id,
+  name,
+  target: { '@type': 'EntryPoint', urlTemplate: `tel:${SITE.telRaw}`, actionPlatform: ['https://schema.org/MobileWebPlatform', 'https://schema.org/DesktopWebPlatform'] },
+  result: { '@type': 'Reservation', name: '마사지 예약' }
 });
 
 export const faqNode = (faq, path) => ({
